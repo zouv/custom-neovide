@@ -13,7 +13,9 @@ set -euo pipefail
 
 # 项目根目录：脚本位于 <repo>/CUSTOMIZATIONS/scripts/ 下
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPTS_DIR="${PROJECT_ROOT}/CUSTOMIZATIONS/scripts"
 TARGET_DIR="${PROJECT_ROOT}/target"
+DIST_DIR="${PROJECT_ROOT}/dist"
 
 log()  { printf "\033[1;34m[manager]\033[0m %s\n" "$*"; }
 ok()   { printf "\033[1;32m[ ok  ]\033[0m %s\n" "$*"; }
@@ -77,6 +79,22 @@ cmd_run() {
   cargo run "$@"
 }
 
+# unpacked 便携包：cargo build --release + 拷贝到 dist/win-unpacked/
+cmd_unpacked() {
+  require_cmd cargo
+  log "打包 unpacked 便携目录（bat）"
+  cmd //c "$(cygpath -w "${SCRIPTS_DIR}/build-unpacked.bat" 2>/dev/null || echo "${SCRIPTS_DIR}/build-unpacked.bat")"
+  ok "unpacked 打包完成：${DIST_DIR}/win-unpacked/"
+}
+
+# Setup 安装包：cargo wix 打 MSI，产物 dist/neovide-<版本>.msi
+cmd_setup() {
+  require_cmd cargo
+  log "打包 MSI Setup 安装包（bat）"
+  cmd //c "$(cygpath -w "${SCRIPTS_DIR}/build-setup.bat" 2>/dev/null || echo "${SCRIPTS_DIR}/build-setup.bat")"
+  ok "Setup 打包完成，见 ${DIST_DIR}/"
+}
+
 cmd_clean() {
   log "清理构建产物（target/）"
   rm -rf "${TARGET_DIR}"
@@ -107,12 +125,15 @@ neovide-custom — manager.sh
   fmt              cargo fmt 格式化
   lint     [args]  cargo clippy（--all-targets --all-features）
   run      [args]  启动开发模式（cargo run）
+  unpacked         构建 + 打包便携目录（dist/win-unpacked/neovide.exe）
+  setup            构建 + 打包 MSI 安装包（dist/neovide-<版本>.msi）
   artifacts        列出当前 release 产物
   clean            清理 target/
   help             显示帮助
 
 说明：
   - 首次 build 会通过 build.rs 下载 skia-safe 预编译二进制，需网络。
+  - setup 依赖 cargo-wix + WiX Toolset v3（candle/light）；WiX 需单独安装。
   - 正式发布（GitHub Release、版本号管理）请用 neovide-publish skill，
     本脚本只负责本地构建。
 EOF
@@ -128,6 +149,8 @@ main() {
     fmt) cmd_fmt ;;
     lint|clippy) cmd_lint "$@" ;;
     run|dev) cmd_run "$@" ;;
+    unpacked|dir) cmd_unpacked ;;
+    setup|installer) cmd_setup ;;
     artifacts|ls) cmd_artifacts ;;
     clean) cmd_clean ;;
     help|-h|--help) cmd_help ;;

@@ -50,7 +50,7 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 | CUSTOMIZATIONS/（README.md、architecture.md、registry.md、docs/pitfalls.md、scripts/、src/、patches/、release-notes/） | new-file | 无标记（纯自定义） | — | 自定义开发机制完整目录（规则/账本/代码地图/坑点库/脚本） | keep-ours | active |
 | .agents/（skills/neovide-record-change、neovide-merge-upstream、neovide-publish、neovide-release） | new-file | 无标记（纯自定义） | — | AI Agent 项目级 skills（4 个） | keep-ours | active |
 | AGENTS.md、CLAUDE.md | new-file | 无标记（纯自定义） | — | 会话级规则入口（AGENTS.md 规则 + CLAUDE.md 指路） | keep-ours | active |
-| .gitignore | config | CUSTOM-20261024-001 | CUSTOM-20261024-001 | 忽略 AI 工具会话级临时目录（.claude/.zcode/.codex/.agent） | merge-manual | active |
+| .gitignore | config | CUSTOM-20261024-001、CUSTOM-20261024-003 | CUSTOM-20261024-001→003 | 忽略 AI 工具会话级临时目录 + 本地打包产物 dist/ | merge-manual | active |
 | Cargo.toml | dependency | CUSTOM-20261024-002 | CUSTOM-20261024-002 | windows 依赖增加 Win32_UI_WindowsAndMessaging（AllowSetForegroundWindow） | merge-manual | active |
 | src/ipc/handoff.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 单实例复用传输层（回环 TCP + PID endpoint 文件 + 前台授权） | merge-manual | active |
 | src/main.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 启用 ipc 模块与 maybe_handoff | merge-manual | active |
@@ -69,6 +69,14 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 ## 变更日志（按次）
 
 > 时间倒序 append-only。格式见 `neovide-record-change` skill。历史条目永不删改。
+
+### 2026-10-24 - CUSTOM-20261024-003
+
+- **功能**：新增 Windows bat 打包脚本（unpacked 便携包 + MSI 安装包）
+- **改动文件**：`CUSTOMIZATIONS/scripts/build-unpacked.bat`、`CUSTOMIZATIONS/scripts/build-setup.bat`、`CUSTOMIZATIONS/scripts/manager.sh`
+- **详细说明**：参考 custom-marktext 脚本结构，适配 neovide（cargo build --release + cargo wix）。unpacked 拷贝 `target/release/neovide.exe` 到 `dist/win-unpacked/`；setup 用 `cargo wix` 打 `neovide-<版本>.msi` 并拷贝到 `dist/`；均含杀软锁文件 15s 退避重试。manager.sh 新增 `unpacked`/`setup` 命令。
+- **验证方式**：`sh CUSTOMIZATIONS/scripts/manager.sh unpacked` 产出 `dist/win-unpacked/neovide.exe`；`sh CUSTOMIZATIONS/scripts/manager.sh help` 显示新命令
+- **基于上游版本**：0.16.2
 
 ### 2026-10-24 - CUSTOM-20261024-002
 

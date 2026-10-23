@@ -19,3 +19,7 @@ flake.lock
 .codex/
 .agent/
 # [CUSTOM-END] CUSTOM-20261024-001
+
+# [CUSTOM-BEGIN] CUSTOM-20261024-003 - ignore local packaging output
+/dist
+# [CUSTOM-END] CUSTOM-20261024-003
