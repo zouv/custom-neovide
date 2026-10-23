@@ -11,3 +11,11 @@ flake.nix
 flake.lock
 .direnv/
 .devenv/
+
+# [CUSTOM-BEGIN] CUSTOM-20261024-001 - ignore AI-agent session-local scratch
+# 上游 .gitignore 不忽略 .agents/，故 .agents/（skill）默认被追踪；这里忽略各 AI 工具的会话级临时目录
+.claude/
+.zcode/
+.codex/
+.agent/
+# [CUSTOM-END] CUSTOM-20261024-001
