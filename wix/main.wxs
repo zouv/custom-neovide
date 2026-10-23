@@ -44,14 +44,18 @@
           <RegistryValue Type="string" Value="Open with Neovide" />
           <RegistryValue Type="string" Name="Icon" Value="[INSTALLDIR]neovide.exe" />
           <RegistryKey Key="command">
-            <RegistryValue Type="string" Value="[INSTALLDIR]neovide.exe &quot;%1&quot;" />
+            <!-- [CUSTOM-BEGIN] CUSTOM-20261024-002 - default double-click opens in existing instance -->
+            <RegistryValue Type="string" Value="[INSTALLDIR]neovide.exe --reuse-instance &quot;%1&quot;" />
+            <!-- [CUSTOM-END] CUSTOM-20261024-002 -->
           </RegistryKey>
         </RegistryKey>
         <RegistryKey Key="Software\Classes\Directory\Background\shell\Neovide" Root="HKCU">
           <RegistryValue Type="string" Value="Open with Neovide" />
           <RegistryValue Type="string" Name="Icon" Value="[INSTALLDIR]neovide.exe" />
             <RegistryKey Key="command">
-            <RegistryValue Type="string" Value="[INSTALLDIR]neovide.exe &quot;%V&quot;" />
+            <!-- [CUSTOM-BEGIN] CUSTOM-20261024-002 - default folder-open reuses existing instance -->
+            <RegistryValue Type="string" Value="[INSTALLDIR]neovide.exe --reuse-instance &quot;%V&quot;" />
+            <!-- [CUSTOM-END] CUSTOM-20261024-002 -->
           </RegistryKey>
         </RegistryKey>
       </Component>

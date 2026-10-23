@@ -2230,6 +2230,22 @@ impl WinitWindowWrapper {
         true
     }
 
+    // [CUSTOM-BEGIN] CUSTOM-20261024-002 - Windows focus for --reuse-instance
+    // 复用实例时，双击的客户端进程已通过 AllowSetForegroundWindow 授权本进程；
+    // 这里恢复最小化并抢回前台。
+    #[cfg(target_os = "windows")]
+    pub fn activate_and_focus_window(&self, window_id: WindowId) -> bool {
+        let Some(route) = self.routes.get(&window_id) else {
+            return false;
+        };
+
+        let window = route.window.winit_window.clone();
+        window.set_minimized(false);
+        window.focus_window();
+        true
+    }
+    // [CUSTOM-END] CUSTOM-20261024-002
+
     pub fn window_id_for_route(&self, route_id: RouteId) -> Option<WindowId> {
         self.routes
             .iter()

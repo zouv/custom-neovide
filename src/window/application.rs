@@ -3,7 +3,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[cfg(target_os = "macos")]
+// [CUSTOM-BEGIN] CUSTOM-20261024-002 - OpenFiles handling available on Windows too
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+// [CUSTOM-END] CUSTOM-20261024-002
 use {
     crate::bridge::{OpenArgs, send_or_queue_file_drop, set_active_route_handler},
     crate::utils::resolve_relative_path,
@@ -243,7 +245,9 @@ impl Application {
         }
     }
 
-    #[cfg(target_os = "macos")]
+    // [CUSTOM-BEGIN] CUSTOM-20261024-002 - OpenFiles handling available on Windows too
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    // [CUSTOM-END] CUSTOM-20261024-002
     fn activate_focused_route(&self) {
         let Some(window_id) = self.window_wrapper.get_focused_route() else {
             return;
@@ -256,7 +260,9 @@ impl Application {
         self.window_wrapper.activate_and_focus_window(window_id);
     }
 
-    #[cfg(target_os = "macos")]
+    // [CUSTOM-BEGIN] CUSTOM-20261024-002 - OpenFiles handling available on Windows too
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    // [CUSTOM-END] CUSTOM-20261024-002
     fn prepare_open_files(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -282,7 +288,9 @@ impl Application {
         self.mark_should_render_all();
     }
 
-    #[cfg(target_os = "macos")]
+    // [CUSTOM-BEGIN] CUSTOM-20261024-002 - OpenFiles handling available on Windows too
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    // [CUSTOM-END] CUSTOM-20261024-002
     fn send_file_drops(&self, args: OpenArgs) {
         for path in args.files_to_open {
             send_or_queue_file_drop(path, Some(args.tabs));
@@ -715,7 +723,9 @@ impl ApplicationHandler<EventPayload> for Application {
         let EventPayload { payload, target } = event;
         match payload {
             UserEvent::ConfigsChanged(config) => self.handle_config_changed(target, *config),
-            #[cfg(target_os = "macos")]
+            // [CUSTOM-BEGIN] CUSTOM-20261024-002 - OpenFiles event handled on Windows too
+            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            // [CUSTOM-END] CUSTOM-20261024-002
             UserEvent::OpenFiles { files, cwd, caller_cwd, tabs, new_window } => {
                 let cwd = cwd.as_deref().map(Path::new);
                 let caller_cwd = caller_cwd.as_deref().map(Path::new);

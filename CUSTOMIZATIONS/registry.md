@@ -51,12 +51,32 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 | .agents/（skills/neovide-record-change、neovide-merge-upstream、neovide-publish、neovide-release） | new-file | 无标记（纯自定义） | — | AI Agent 项目级 skills（4 个） | keep-ours | active |
 | AGENTS.md、CLAUDE.md | new-file | 无标记（纯自定义） | — | 会话级规则入口（AGENTS.md 规则 + CLAUDE.md 指路） | keep-ours | active |
 | .gitignore | config | CUSTOM-20261024-001 | CUSTOM-20261024-001 | 忽略 AI 工具会话级临时目录（.claude/.zcode/.codex/.agent） | merge-manual | active |
+| Cargo.toml | dependency | CUSTOM-20261024-002 | CUSTOM-20261024-002 | windows 依赖增加 Win32_UI_WindowsAndMessaging（AllowSetForegroundWindow） | merge-manual | active |
+| src/ipc/handoff.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 单实例复用传输层（回环 TCP + PID endpoint 文件 + 前台授权） | merge-manual | active |
+| src/main.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 启用 ipc 模块与 maybe_handoff | merge-manual | active |
+| src/bridge/mod.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 导出 file-drop 队列并在 ui_attach 后标记就绪 | merge-manual | active |
+| src/bridge/ui_commands.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 file-drop 排队/就绪机制 | merge-manual | active |
+| src/window/mod.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 启用 OpenFiles 事件 | merge-manual | active |
+| src/window/application.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 处理 OpenFiles 事件（激活窗口 + 转发文件） | merge-manual | active |
+| src/window/window_wrapper.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 新增 activate_and_focus_window（恢复最小化 + 抢前台） | merge-manual | active |
+| src/utils/mod.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 resolved_cwd / resolve_relative_path | merge-manual | active |
+| src/cmd_line.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 启用 --reuse-instance / --new-window 参数 + argv_chdir | merge-manual | active |
+| src/version.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 release_channel | merge-manual | active |
+| wix/main.wxs | config | CUSTOM-20261024-002 | CUSTOM-20261024-002 | 右键/双击打开默认加 --reuse-instance | merge-manual | active |
 
 ---
 
 ## 变更日志（按次）
 
 > 时间倒序 append-only。格式见 `neovide-record-change` skill。历史条目永不删改。
+
+### 2026-10-24 - CUSTOM-20261024-002
+
+- **功能**：Windows 支持 `--reuse-instance`（双击文件在已运行的同一 GUI 实例中打开）
+- **改动文件**：`src/ipc/handoff.rs`、`src/main.rs`、`src/bridge/mod.rs`、`src/bridge/ui_commands.rs`、`src/window/mod.rs`、`src/window/application.rs`、`src/window/window_wrapper.rs`、`src/utils/mod.rs`、`src/cmd_line.rs`、`src/version.rs`、`Cargo.toml`、`wix/main.wxs`
+- **详细说明**：把 macOS 已有的单实例复用机制移植到 Windows——传输层用回环 TCP（127.0.0.1 随机端口 + endpoint 文件记录端口与 PID）替代 unix socket；双击的客户端进程读 endpoint 文件后 `AllowSetForegroundWindow(服务端 PID)` 授权服务端抢回前台；`wix` 文件关联命令默认加 `--reuse-instance`。macOS/Linux 行为不变。
+- **验证方式**：`cargo fmt --check` 通过；`cargo check`（见构建日志）；`sh CUSTOMIZATIONS/scripts/check-registry.sh` 全绿
+- **基于上游版本**：0.16.2
 
 ### 2026-10-24 - 项目初始化
 

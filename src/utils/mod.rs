@@ -2,7 +2,9 @@ mod ring_buffer;
 #[cfg(test)]
 mod test;
 
-#[cfg(target_os = "macos")]
+// [CUSTOM-BEGIN] CUSTOM-20261024-002 - reuse path helpers on Windows for --reuse-instance
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+// [CUSTOM-END] CUSTOM-20261024-002
 use std::path::{Path, PathBuf};
 
 #[cfg(target_os = "windows")]
@@ -66,7 +68,9 @@ pub fn expand_tilde(path: &str) -> String {
     home.to_string_lossy().into()
 }
 
-#[cfg(target_os = "macos")]
+// [CUSTOM-BEGIN] CUSTOM-20261024-002 - reuse resolved_cwd on Windows for --reuse-instance
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+// [CUSTOM-END] CUSTOM-20261024-002
 pub fn resolved_cwd(chdir: Option<&str>) -> Option<String> {
     let current_dir = std::env::current_dir().ok();
 
@@ -80,7 +84,9 @@ pub fn resolved_cwd(chdir: Option<&str>) -> Option<String> {
     Some(cwd.to_string_lossy().into_owned())
 }
 
-#[cfg(target_os = "macos")]
+// [CUSTOM-BEGIN] CUSTOM-20261024-002 - reuse resolve_relative_path on Windows for --reuse-instance
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+// [CUSTOM-END] CUSTOM-20261024-002
 pub fn resolve_relative_path(path: &str, cwd: Option<&Path>) -> String {
     if path.starts_with('~') {
         return expand_tilde(path);

@@ -48,7 +48,9 @@ pub use command::{OpenArgs, OpenMode, create_blocking_nvim_command};
 pub use events::*;
 pub use restart::RestartDetails;
 pub use session::NeovimWriter;
-#[cfg(target_os = "macos")]
+// [CUSTOM-BEGIN] CUSTOM-20261024-002 - export file-drop queue on Windows too
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+// [CUSTOM-END] CUSTOM-20261024-002
 pub use ui_commands::send_or_queue_file_drop;
 pub use ui_commands::{
     ParallelCommand, SerialCommand, require_active_handler, send_ui, set_active_route_handler,
@@ -218,7 +220,9 @@ async fn create_neovim_session(
         .await
         .context("Could not attach ui to neovim process")?;
 
-    #[cfg(target_os = "macos")]
+    // [CUSTOM-BEGIN] CUSTOM-20261024-002 - mark file-drop handler ready on Windows too
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    // [CUSTOM-END] CUSTOM-20261024-002
     ui_commands::mark_file_drop_handler_ready(&handler);
 
     info!("Neovim process attached");

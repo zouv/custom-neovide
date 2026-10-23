@@ -22,7 +22,9 @@ mod dimensions;
 mod editor;
 mod error_handling;
 mod frame;
-#[cfg(target_os = "macos")]
+// [CUSTOM-BEGIN] CUSTOM-20261024-002 - enable ipc/handoff module on Windows
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+// [CUSTOM-END] CUSTOM-20261024-002
 mod ipc;
 mod platform;
 mod profiling;
@@ -80,7 +82,9 @@ use crate::{
     settings::{Config, Settings, load_last_window_settings},
 };
 
-#[cfg(target_os = "macos")]
+// [CUSTOM-BEGIN] CUSTOM-20261024-002 - reuse resolved_cwd on Windows for --reuse-instance
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+// [CUSTOM-END] CUSTOM-20261024-002
 use crate::utils::resolved_cwd;
 
 pub use profiling::startup_profiler;
@@ -153,7 +157,9 @@ fn main() -> ExitCode {
         clipboard_handle,
     );
 
-    #[cfg(target_os = "macos")]
+    // [CUSTOM-BEGIN] CUSTOM-20261024-002 - start handoff listener on Windows too
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    // [CUSTOM-END] CUSTOM-20261024-002
     let _handoff_listener = match ipc::handoff::start_listener(event_loop.create_proxy()) {
         Ok(listener) => Some(listener),
         Err(error) => {
@@ -181,7 +187,9 @@ fn preflight(settings: &Settings) -> Result<()> {
         }
     }
 
-    #[cfg(target_os = "macos")]
+    // [CUSTOM-BEGIN] CUSTOM-20261024-002 - run instance handoff on Windows too
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    // [CUSTOM-END] CUSTOM-20261024-002
     match maybe_handoff(settings) {
         HandoffOutcome::Continue => {}
         HandoffOutcome::Exit => std::process::exit(0),
@@ -294,14 +302,18 @@ fn setup(
     Ok(())
 }
 
-#[cfg(target_os = "macos")]
+// [CUSTOM-BEGIN] CUSTOM-20261024-002 - instance handoff available on Windows too
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+// [CUSTOM-END] CUSTOM-20261024-002
 enum HandoffOutcome {
     Continue,
     Exit,
     Error(String),
 }
 
-#[cfg(target_os = "macos")]
+// [CUSTOM-BEGIN] CUSTOM-20261024-002 - instance handoff available on Windows too
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+// [CUSTOM-END] CUSTOM-20261024-002
 fn maybe_handoff(settings: &Settings) -> HandoffOutcome {
     let cmdline_settings = settings.get::<CmdLineSettings>();
     if !cmdline_settings.reuse_instance

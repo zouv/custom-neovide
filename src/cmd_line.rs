@@ -10,7 +10,9 @@ use clap::{
     ArgAction, Parser, ValueEnum,
     builder::{FalseyValueParser, Styles, styling},
 };
-#[cfg(target_os = "macos")]
+// [CUSTOM-BEGIN] CUSTOM-20261024-002 - CommandFactory/ValueSource reused on Windows for argv_chdir
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+// [CUSTOM-END] CUSTOM-20261024-002
 use clap::{CommandFactory, parser::ValueSource};
 use winit::window::CursorIcon;
 
@@ -57,12 +59,16 @@ pub struct CmdLineSettings {
     pub server: Option<String>,
 
     /// Open files in an existing Neovide app instance if one is already running
-    #[cfg(target_os = "macos")]
+    // [CUSTOM-BEGIN] CUSTOM-20261024-002 - enable --reuse-instance on Windows
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    // [CUSTOM-END] CUSTOM-20261024-002
     #[arg(long = "reuse-instance", action = ArgAction::SetTrue, default_value = "0", value_parser = FalseyValueParser::new())]
     pub reuse_instance: bool,
 
     /// Open files in a new window when reusing an existing Neovide instance
-    #[cfg(target_os = "macos")]
+    // [CUSTOM-BEGIN] CUSTOM-20261024-002 - enable --new-window on Windows
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    // [CUSTOM-END] CUSTOM-20261024-002
     #[arg(long = "new-window", requires = "reuse_instance", action = ArgAction::SetTrue, default_value = "0", value_parser = FalseyValueParser::new())]
     pub new_window: bool,
 
@@ -284,7 +290,9 @@ pub fn handle_command_line_arguments(args: Vec<String>, settings: &Settings) -> 
     Ok(())
 }
 
-#[cfg(target_os = "macos")]
+// [CUSTOM-BEGIN] CUSTOM-20261024-002 - argv_chdir reused on Windows for --reuse-instance
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+// [CUSTOM-END] CUSTOM-20261024-002
 pub fn argv_chdir() -> Option<String> {
     let matches = CmdLineSettings::command().try_get_matches_from(std::env::args_os()).ok()?;
 

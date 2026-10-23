@@ -132,7 +132,9 @@ pub enum MacShortcutCommand {
 #[derive(Clone, Debug, PartialEq)]
 pub enum UserEvent {
     DrawCommandBatch(Vec<DrawCommand>),
-    #[cfg(target_os = "macos")]
+    // [CUSTOM-BEGIN] CUSTOM-20261024-002 - OpenFiles event available on Windows too
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    // [CUSTOM-END] CUSTOM-20261024-002
     OpenFiles {
         files: Vec<String>,
         cwd: Option<String>,
