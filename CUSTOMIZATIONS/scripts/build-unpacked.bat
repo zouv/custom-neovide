@@ -64,6 +64,9 @@ rem `timeout` to GNU coreutils' timeout, which rejects /t and returns immediatel
 goto :CopyRun
 :CopyDone
 
+rem 连同文件关联注册脚本一起拷贝，方便换路径后双击快速重注册
+copy /Y "CUSTOMIZATIONS\scripts\register-file-assoc.bat" "dist\win-unpacked\register-file-assoc.bat" >nul 2>&1
+
 echo.
 echo ============================================================
 echo  Output:

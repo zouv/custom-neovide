@@ -1,0 +1,4 @@
+# 行尾规范化：.bat/.ps1 需要 CRLF（cmd/PowerShell 依赖），.sh 需要 LF
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.sh text eol=lf

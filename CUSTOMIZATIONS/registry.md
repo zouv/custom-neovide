@@ -49,7 +49,7 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 | ---- | -------- | ----------------- | ------ | ------------------ | -------- | ---- |
 | CUSTOMIZATIONS/（README.md、architecture.md、registry.md、docs/pitfalls.md、scripts/、src/、patches/、release-notes/） | new-file | 无标记（纯自定义） | — | 自定义开发机制完整目录（规则/账本/代码地图/坑点库/脚本） | keep-ours | active |
 | .agents/（skills/neovide-record-change、neovide-merge-upstream、neovide-publish、neovide-release） | new-file | 无标记（纯自定义） | — | AI Agent 项目级 skills（4 个） | keep-ours | active |
-| AGENTS.md、CLAUDE.md | new-file | 无标记（纯自定义） | — | 会话级规则入口（AGENTS.md 规则 + CLAUDE.md 指路） | keep-ours | active |
+| AGENTS.md、CLAUDE.md、.gitattributes | new-file | 无标记（纯自定义） | — | 会话级规则入口 + 行尾规范化（.bat CRLF / .sh LF） | keep-ours | active |
 | .gitignore | config | CUSTOM-20261024-001、CUSTOM-20261024-003 | CUSTOM-20261024-001→003 | 忽略 AI 工具会话级临时目录 + 本地打包产物 dist/ | merge-manual | active |
 | Cargo.toml | dependency | CUSTOM-20261024-002 | CUSTOM-20261024-002 | windows 依赖增加 Win32_UI_WindowsAndMessaging（AllowSetForegroundWindow） | merge-manual | active |
 | src/ipc/handoff.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 单实例复用传输层（回环 TCP + PID endpoint 文件 + 前台授权） | merge-manual | active |
@@ -69,6 +69,14 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 ## 变更日志（按次）
 
 > 时间倒序 append-only。格式见 `neovide-record-change` skill。历史条目永不删改。
+
+### 2026-10-24 - CUSTOM-20261024-004
+
+- **功能**：新增文件关联注册脚本（双击运行，换路径后快速重注册）
+- **改动文件**：`CUSTOMIZATIONS/scripts/register-file-assoc.bat`、`CUSTOMIZATIONS/scripts/build-unpacked.bat`、`.gitattributes`
+- **详细说明**：新增 `register-file-assoc.bat`——把脚本同目录的 neovide.exe 注册为打开命令（带 `--reuse-instance`），注册前检测旧关联并提示是否替换；`build-unpacked.bat` 打包时把它一并拷贝到 `dist/win-unpacked/`；新增 `.gitattributes` 规范行尾（.bat/.ps1 CRLF、.sh LF），并把三个 .bat 转为 CRLF（否则 cmd 解析报错）。
+- **验证方式**：双击路径实测——检测旧关联/取消/替换三条路径均正常；`reg query` 确认注册值正确
+- **基于上游版本**：0.16.2
 
 ### 2026-10-24 - CUSTOM-20261024-003
 
