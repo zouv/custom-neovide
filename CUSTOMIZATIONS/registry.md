@@ -1,10 +1,10 @@
 ---
 current_upstream_version: '0.16.2'
 current_upstream_commit: 'd2d6ebd4ee6b8b645c9b9a3b0d5d30923509b2c0'
-custom_version: '0.16.2-custom.0'
+custom_version: '0.16.2-custom.1'
 last_merge_date: '2026-10-24'
-last_release_version: ''
-last_release_date: ''
+last_release_version: '0.16.2-custom.1'
+last_release_date: '2026-10-24'
 vendor_branch: 'vendor/v0.16.x'
 upstream_remote: 'https://github.com/neovide/neovide.git'
 ---
