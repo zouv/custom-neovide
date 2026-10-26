@@ -51,14 +51,20 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 | .agents/（skills/neovide-record-change、neovide-merge-upstream、neovide-publish、neovide-release） | new-file | 无标记（纯自定义） | — | AI Agent 项目级 skills（4 个） | keep-ours | active |
 | AGENTS.md、CLAUDE.md、.gitattributes | new-file | 无标记（纯自定义） | — | 会话级规则入口 + 行尾规范化（.bat CRLF / .sh LF） | keep-ours | active |
 | .gitignore | config | CUSTOM-20261024-001、CUSTOM-20261024-003 | CUSTOM-20261024-001→003 | 忽略 AI 工具会话级临时目录 + 本地打包产物 dist/ | merge-manual | active |
-| Cargo.toml | dependency | CUSTOM-20261024-002 | CUSTOM-20261024-002 | windows 依赖增加 Win32_UI_WindowsAndMessaging（AllowSetForegroundWindow） | merge-manual | active |
+| Cargo.toml | dependency | CUSTOM-20261024-002、CUSTOM-20261025-001 | CUSTOM-20261024-002→20261025-001 | windows 依赖增加 Win32_UI_WindowsAndMessaging（AllowSetForegroundWindow）、Win32_UI_Shell / KeyboardAndMouse（菜单栏子类化），并引入 muda | merge-manual | active |
 | src/ipc/handoff.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 单实例复用传输层（回环 TCP + PID endpoint 文件 + 前台授权） | merge-manual | active |
 | src/main.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 启用 ipc 模块与 maybe_handoff | merge-manual | active |
 | src/bridge/mod.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 导出 file-drop 队列并在 ui_attach 后标记就绪 | merge-manual | active |
-| src/bridge/ui_commands.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 file-drop 排队/就绪机制 | merge-manual | active |
-| src/window/mod.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 启用 OpenFiles 事件 | merge-manual | active |
-| src/window/application.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 处理 OpenFiles 事件（激活窗口 + 转发文件） | merge-manual | active |
-| src/window/window_wrapper.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 新增 activate_and_focus_window（恢复最小化 + 抢前台） | merge-manual | active |
+| src/bridge/ui_commands.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001 | CUSTOM-20261024-002→20261025-001 | Windows 复用 file-drop 排队/就绪机制；新增 MenuCommand 执行 `:emenu` | merge-manual | active |
+| src/bridge/handler.rs | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | 接收 `neovide.set_menu` 通知，解析菜单树并下发 SetMenu 窗口命令 | merge-manual | active |
+| src/window/mod.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001 | CUSTOM-20261024-002→20261025-001 | Windows 启用 OpenFiles 事件；新增 menubar 模块、WindowCommand::SetMenu、UserEvent::MenuCommand；菜单栏启用时跳过 NOREDIRECTIONBITMAP | merge-manual | active |
+| src/window/application.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001 | CUSTOM-20261024-002→20261025-001 | Windows 处理 OpenFiles 事件（激活窗口 + 转发文件）；注册 muda 全局菜单事件处理器 | merge-manual | active |
+| src/window/window_wrapper.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001 | CUSTOM-20261024-002→20261025-001 | Windows 新增 activate_and_focus_window（恢复最小化 + 抢前台）；菜单栏挂载/重建/显隐/主题与点击转发 | merge-manual | active |
+| src/window/menubar.rs | new-file | CUSTOM-20261025-001 | CUSTOM-20261025-001 | Windows 原生菜单栏（muda 菜单树、Alt 键过滤子类、主题） | keep-ours | active |
+| src/window/settings.rs | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | 新增 g:neovide_menubar（Windows，默认 false） | merge-manual | active |
+| src/renderer/mod.rs | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | Windows 启用菜单栏时强制走 OpenGL（D3D 的 NOREDIRECTIONBITMAP 让原生菜单栏不可见） | merge-manual | active |
+| lua/init.lua | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | 菜单树采集/发送（neovide.refresh_menu）、点击执行（:emenu）、启动后自动刷新 | merge-manual | active |
+| CUSTOMIZATIONS/nvim/ | new-file | 无标记（纯自定义） | CUSTOM-20261025-002→20261026-001 | nvim 侧配置副本：菜单内容定义 + 关闭最后文件保留窗口（窗口计数排除浮窗） | keep-ours | active |
 | src/utils/mod.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 resolved_cwd / resolve_relative_path | merge-manual | active |
 | src/cmd_line.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 启用 --reuse-instance / --new-window 参数 + argv_chdir | merge-manual | active |
 | src/version.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 release_channel | merge-manual | active |
@@ -69,6 +75,30 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 ## 变更日志（按次）
 
 > 时间倒序 append-only。格式见 `neovide-record-change` skill。历史条目永不删改。
+
+### 2026-10-26 - CUSTOM-20261026-001
+
+- **功能**：修复菜单栏启用后窗口全透明、以及「最后一个窗口上 `:q` 仍直接退出」两个问题
+- **改动文件**：`src/window/mod.rs`、`CUSTOMIZATIONS/nvim/neovide_welcome.lua`（本机同步到 `%LOCALAPPDATA%\nvim\lua\config\`）
+- **详细说明**：① 菜单栏启用时渲染器切到 OpenGL，但 `create_window` 仍按 `!cmd_line.opengl` 给窗口加 `WS_EX_NOREDIRECTIONBITMAP`，窗口没有 GDI 重定向表面 → OpenGL 画面无处落地、整窗透明；改为菜单栏启用时同样跳过该标志。② `QuitPre` 守卫用 `nvim_list_wins()` 判断“最后一个窗口”，noice 的命令行/通知浮窗让计数变成 3 而放行；改为只统计当前 tabpage 的非浮动窗口，删除缓冲区路径也改用 `current_normal_window()` 定位目标窗口。
+- **验证方式**：GUI 实测 `:q` 后窗口保留并显示 LazyVim dashboard、菜单复制正常；无界面回归 `:q` 保持存活（124）、`:qa` 退出（0）、删最后一个 buffer 后 filetype=snacks_dashboard；`cargo fmt --check`/`check`/`clippy`/`test`（167 passed）通过
+- **基于上游版本**：0.16.2
+
+### 2026-10-25 - CUSTOM-20261025-002
+
+- **功能**：nvim 侧配置——原生菜单栏内容定义 + 关闭最后一个文件后保留窗口并回到欢迎界面
+- **改动文件（仓库外，同步副本在 `CUSTOMIZATIONS/nvim/`）**：`%LOCALAPPDATA%\nvim\lua\config\neovide_menu.lua`、`neovide_welcome.lua`、`lua\config\options.lua`、`init.lua`
+- **详细说明**：`neovide_menu.lua` 用 `:amenu` 定义「文件/编辑/视图/常用/帮助」菜单，分隔线用 `-sepN-` 占位，只显示真实存在的快捷键提示；`neovide_welcome.lua` 覆盖两条关闭路径——删除最后一个文件缓冲区（BufDelete/BufWipeout）和最后一个窗口上的 `:q`（QuitPre 打开备用窗口接住关闭），随后用 `Snacks.dashboard.open()` 显示欢迎界面；`:qa`/`:qa!` 与 Neovide 关闭按钮不受影响。
+- **验证方式**：`nvim --headless --cmd 'let g:neovide=v:true'` 下 `menu_get("")` 返回 5 个自定义顶层菜单；`emenu n 文件.保存` 实测成功保存；GUI 下验证待补
+- **基于上游版本**：0.16.2
+
+### 2026-10-25 - CUSTOM-20261025-001
+
+- **功能**：Windows 原生菜单栏——Neovide 渲染菜单，内容与行为全部由 nvim `:amenu` 定义
+- **改动文件**：`src/window/menubar.rs`（新增）、`src/window/mod.rs`、`src/window/window_wrapper.rs`、`src/window/settings.rs`、`src/window/application.rs`、`src/bridge/handler.rs`、`src/bridge/ui_commands.rs`、`src/renderer/mod.rs`、`lua/init.lua`、`Cargo.toml`
+- **详细说明**：`lua/init.lua` 在 VimEnter 后调用 `menu_get("")` 并 rpcnotify `neovide.set_menu`；Rust 侧解析成 `MenuEntry` 树，用 muda `init_for_hwnd_with_theme` 挂到窗口（每个 RouteWindow 一个 Menubar）；点击菜单项经 `MenuEvent` → winit proxy → `ParallelCommand::MenuCommand` → `:emenu <当前模式> <路径>`。新增 `g:neovide_menubar`（Windows，默认 false）；全屏、`--frame none` 时自动隐藏；主题跟随窗口。用自定义窗口子类屏蔽 `SC_KEYMENU` 与 Alt 组合键的 mnemonic，确保 Alt 键全部交给 nvim（AltGr 例外）。**D3D 渲染器使用 `CreateSwapChainForComposition` + `WS_EX_NOREDIRECTIONBITMAP`，窗口没有 GDI 重定向表面，系统菜单栏不可见，因此启用菜单栏时自动改用 OpenGL 渲染器，并在 `create_window` 中同步跳过 `with_no_redirection_bitmap`（否则 OpenGL 窗口会全透明）。**
+- **验证方式**：`cargo fmt --check`、`cargo check`、`cargo clippy --all-targets --all-features` 通过；nvim 侧 `emenu` 实测；GUI 实测待补
+- **基于上游版本**：0.16.2
 
 ### 2026-10-24 - CUSTOM-20261024-004
 

@@ -153,6 +153,11 @@ impl Application {
 
         let runtime_tracker = RunningTracker::new();
 
+        // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 菜单点击通过 winit 事件循环回到主线程
+        #[cfg(target_os = "windows")]
+        crate::window::menubar::set_event_handler(Arc::new(Mutex::new(proxy.clone())));
+        // [CUSTOM-END] CUSTOM-20261025-001
+
         let window_wrapper = WinitWindowWrapper::new(
             initial_font_settings,
             settings.clone(),

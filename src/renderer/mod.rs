@@ -673,13 +673,18 @@ pub fn build_window_config(
     settings: &Settings,
 ) -> WindowConfig {
     let cmd_line_settings = settings.get::<CmdLineSettings>();
-    if cmd_line_settings.opengl {
+    // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 原生菜单栏需要 GDI 重定向表面
+    // D3D 后端使用 CreateSwapChainForComposition + WS_EX_NOREDIRECTIONBITMAP，
+    // 这样的窗口画不出系统菜单栏（去掉该标志 D3D 又无法启动），因此启用菜单栏时改用 OpenGL。
+    let menubar = settings.get::<WindowSettings>().menubar;
+    if cmd_line_settings.opengl || menubar {
         opengl::build_window(window_attributes, event_loop)
     } else {
         let window = event_loop.create_window(window_attributes).unwrap();
         let config = WindowConfigType::Direct3D;
         WindowConfig { window: window.into(), config }
     }
+    // [CUSTOM-END] CUSTOM-20261025-001
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]

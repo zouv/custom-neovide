@@ -66,6 +66,9 @@ use crate::{
 
 #[cfg(windows)]
 use {
+    // [CUSTOM-BEGIN] CUSTOM-20261025-001 - Windows 原生菜单栏
+    crate::window::menubar::{MenuEntry, Menubar},
+    // [CUSTOM-END] CUSTOM-20261025-001
     crate::windows_utils::{register_right_click, unregister_right_click},
     winit::platform::windows::{BackdropType, Color, WindowExtWindows},
 };
@@ -113,6 +116,10 @@ pub struct RouteWindow {
     pub title: String,
     pub last_applied_window_size: dpi::PhysicalSize<u32>,
     pub last_synced_grid_size: Option<GridSize<u32>>,
+    // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 每个窗口一个原生菜单栏
+    #[cfg(target_os = "windows")]
+    pub menubar: Option<Box<Menubar>>,
+    // [CUSTOM-END] CUSTOM-20261025-001
 }
 
 impl fmt::Debug for RouteWindow {
@@ -183,6 +190,10 @@ struct RouteCore {
     inferred_theme: Option<Theme>,
     should_show_observed: bool,
     font_changed_last_frame: bool,
+    // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 窗口创建前收到的菜单树
+    #[cfg(target_os = "windows")]
+    menu: Vec<MenuEntry>,
+    // [CUSTOM-END] CUSTOM-20261025-001
 }
 
 #[derive(Clone)]
@@ -324,6 +335,10 @@ impl WinitWindowWrapper {
                 inferred_theme: None,
                 should_show_observed: false,
                 font_changed_last_frame: false,
+                // [CUSTOM-BEGIN] CUSTOM-20261025-001
+                #[cfg(target_os = "windows")]
+                menu: Vec::new(),
+                // [CUSTOM-END] CUSTOM-20261025-001
             },
         );
     }
@@ -536,6 +551,10 @@ impl WinitWindowWrapper {
             WindowCommand::RegisterRightClick => register_right_click(),
             #[cfg(windows)]
             WindowCommand::UnregisterRightClick => unregister_right_click(),
+            // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 重建菜单栏
+            #[cfg(windows)]
+            WindowCommand::SetMenu(entries) => self.handle_set_menu(target_window_id, entries),
+            // [CUSTOM-END] CUSTOM-20261025-001
         }
     }
 
@@ -562,6 +581,12 @@ impl WinitWindowWrapper {
                     &route_core.neovim_handler,
                 );
             }
+            // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 窗口创建前先缓存菜单树
+            #[cfg(windows)]
+            WindowCommand::SetMenu(entries) => {
+                route_core.menu = entries;
+            }
+            // [CUSTOM-END] CUSTOM-20261025-001
             _ => {}
         }
     }
@@ -607,7 +632,17 @@ impl WinitWindowWrapper {
                 for window_id in window_ids.iter() {
                     self.set_fullscreen(*window_id, fullscreen);
                 }
+                // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 全屏时隐藏菜单栏
+                #[cfg(target_os = "windows")]
+                self.refresh_menubar_visibility(&window_ids);
+                // [CUSTOM-END] CUSTOM-20261025-001
             }
+            // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 运行时开关菜单栏
+            #[cfg(target_os = "windows")]
+            WindowSettingsChanged::Menubar(_) => {
+                self.refresh_menubar_visibility(&window_ids);
+            }
+            // [CUSTOM-END] CUSTOM-20261025-001
             WindowSettingsChanged::InputIme(ime_enabled) => {
                 for window_id in window_ids.iter() {
                     self.set_ime(*window_id, ime_enabled);
@@ -749,13 +784,78 @@ impl WinitWindowWrapper {
         }
     }
 
-    fn apply_theme_for_window(&self, window_id: WindowId) {
-        if let Some(route) = self.routes.get(&window_id) {
+    fn apply_theme_for_window(&mut self, window_id: WindowId) {
+        let inferred_theme =
+            self.routes.get(&window_id).and_then(|route| route.state.inferred_theme);
+        let theme = self.get_theme_for(inferred_theme);
+        if let Some(route) = self.routes.get_mut(&window_id) {
             let window = route.window.winit_window.clone();
-            let theme = self.get_theme_for(route.state.inferred_theme);
             window.set_theme(theme);
+            // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 菜单栏跟随窗口主题
+            #[cfg(target_os = "windows")]
+            if let Some(menubar) = route.window.menubar.as_mut() {
+                menubar.set_theme(theme);
+            }
+            // [CUSTOM-END] CUSTOM-20261025-001
         }
     }
+
+    // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 菜单栏相关处理
+    #[cfg(target_os = "windows")]
+    fn menubar_should_show(&self) -> bool {
+        let WindowSettings { menubar, fullscreen, .. } = self.settings.get::<WindowSettings>();
+        let frame = self.settings.get::<CmdLineSettings>().frame;
+        menubar && !fullscreen && frame == crate::frame::Frame::Full
+    }
+
+    #[cfg(target_os = "windows")]
+    fn handle_set_menu(&mut self, window_id: WindowId, entries: Vec<MenuEntry>) {
+        let should_show = self.menubar_should_show();
+        let inferred_theme =
+            self.routes.get(&window_id).and_then(|route| route.state.inferred_theme);
+        let theme = self.get_theme_for(inferred_theme);
+
+        let Some(route) = self.routes.get_mut(&window_id) else {
+            return;
+        };
+
+        match route.window.menubar.as_mut() {
+            Some(menubar) => menubar.rebuild(&entries),
+            None => {
+                route.window.menubar =
+                    Menubar::attach(&route.window.winit_window, &entries, theme, should_show)
+                        .map(Box::new);
+                return;
+            }
+        }
+
+        if let Some(menubar) = route.window.menubar.as_mut() {
+            menubar.set_visible(should_show);
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn refresh_menubar_visibility(&mut self, window_ids: &[WindowId]) {
+        let should_show = self.menubar_should_show();
+        for window_id in window_ids {
+            if let Some(route) = self.routes.get_mut(window_id) {
+                if let Some(menubar) = route.window.menubar.as_mut() {
+                    menubar.set_visible(should_show);
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn handle_menu_command(&mut self, path: String) {
+        let Some(route) = self.focused_route() else {
+            log::warn!("Menu command received without a focused window");
+            return;
+        };
+        let neovim_handler = route.window.neovim_handler.clone();
+        send_ui(ParallelCommand::MenuCommand(path), &neovim_handler);
+    }
+    // [CUSTOM-END] CUSTOM-20261025-001
 
     pub fn send_font_names(&self, window_id: WindowId) {
         let Some(route) = self.routes.get(&window_id) else {
@@ -1166,6 +1266,12 @@ impl WinitWindowWrapper {
             UserEvent::ShowProgressBar { percent, .. } => {
                 self.handle_progress_bar(target, percent);
             }
+            // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 菜单点击转发给 nvim
+            #[cfg(target_os = "windows")]
+            UserEvent::MenuCommand(path) => {
+                self.handle_menu_command(path);
+            }
+            // [CUSTOM-END] CUSTOM-20261025-001
             _ => {}
         }
     }
@@ -1469,6 +1575,10 @@ impl WinitWindowWrapper {
         let mut route_mouse_enabled = true;
         let mut should_apply_initial_window_size = false;
         let mut route_font_changed_last_frame = false;
+        // [CUSTOM-BEGIN] CUSTOM-20261025-001 - nvim 在窗口创建前发来的菜单树
+        #[cfg(target_os = "windows")]
+        let mut route_menu: Vec<MenuEntry> = Vec::new();
+        // [CUSTOM-END] CUSTOM-20261025-001
 
         let WindowSettings {
             input_ime,
@@ -1503,6 +1613,12 @@ impl WinitWindowWrapper {
                 route_mouse_enabled = route_core.mouse_enabled;
                 should_apply_initial_window_size = route_core.should_show_observed;
                 route_font_changed_last_frame = route_core.font_changed_last_frame;
+                // [CUSTOM-BEGIN] CUSTOM-20261025-001
+                #[cfg(target_os = "windows")]
+                {
+                    route_menu = route_core.menu;
+                }
+                // [CUSTOM-END] CUSTOM-20261025-001
                 (
                     route_core.renderer,
                     route_core.neovim_handler,
@@ -1707,6 +1823,20 @@ impl WinitWindowWrapper {
         state.vsync = Some(vsync);
         state.inferred_theme = route_inferred_theme;
         state.font_changed_last_frame = route_font_changed_last_frame;
+        // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 创建窗口时挂载菜单栏
+        #[cfg(target_os = "windows")]
+        let menubar = if route_menu.is_empty() {
+            None
+        } else {
+            Menubar::attach(
+                &window,
+                &route_menu,
+                self.get_theme_for(route_inferred_theme),
+                self.menubar_should_show(),
+            )
+            .map(Box::new)
+        };
+        // [CUSTOM-END] CUSTOM-20261025-001
         let route = Route {
             route_id,
             window: RouteWindow {
@@ -1720,6 +1850,10 @@ impl WinitWindowWrapper {
                 title: route_title,
                 last_applied_window_size: saved_inner_size,
                 last_synced_grid_size: route_last_synced_grid_size,
+                // [CUSTOM-BEGIN] CUSTOM-20261025-001
+                #[cfg(target_os = "windows")]
+                menubar,
+                // [CUSTOM-END] CUSTOM-20261025-001
             },
             cwd: route_cwd,
             pending_initial_window_size,

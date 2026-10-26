@@ -243,6 +243,14 @@ impl Handler for NeovimHandler {
             "neovide.unregister_right_click" => {
                 self.send_window_command(WindowCommand::UnregisterRightClick);
             }
+            // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 接收 nvim 的菜单树并挂到窗口上
+            #[cfg(windows)]
+            "neovide.set_menu" => {
+                let entries =
+                    arguments.first().map(crate::window::menubar::parse_menu).unwrap_or_default();
+                self.send_window_command(WindowCommand::SetMenu(entries));
+            }
+            // [CUSTOM-END] CUSTOM-20261025-001
             "neovide.focus_window" => {
                 self.send_window_command(WindowCommand::FocusWindow);
             }

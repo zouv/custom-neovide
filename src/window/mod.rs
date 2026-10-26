@@ -7,6 +7,11 @@ mod mouse_manager;
 mod settings;
 mod window_wrapper;
 
+// [CUSTOM-BEGIN] CUSTOM-20261025-001 - Windows 原生菜单栏
+#[cfg(target_os = "windows")]
+pub mod menubar;
+// [CUSTOM-END] CUSTOM-20261025-001
+
 #[cfg(target_os = "linux")]
 use std::env;
 
@@ -120,6 +125,10 @@ pub enum WindowCommand {
     RegisterRightClick,
     #[cfg(windows)]
     UnregisterRightClick,
+    // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 用 nvim 的菜单树重建窗口菜单栏
+    #[cfg(windows)]
+    SetMenu(Vec<menubar::MenuEntry>),
+    // [CUSTOM-END] CUSTOM-20261025-001
 }
 
 #[cfg(target_os = "macos")]
@@ -159,6 +168,10 @@ pub enum UserEvent {
     CreateWindow,
     #[cfg(target_os = "macos")]
     MacShortcut(MacShortcutCommand),
+    // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 菜单项点击（值为菜单路径）
+    #[cfg(target_os = "windows")]
+    MenuCommand(String),
+    // [CUSTOM-END] CUSTOM-20261025-001
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -278,10 +291,16 @@ pub fn create_window(
         window_attributes.with_window_icon(Some(icon.clone())).with_taskbar_icon(Some(icon));
 
     #[cfg(target_os = "windows")]
-    let window_attributes = if !cmd_line_settings.opengl {
-        WindowAttributesExtWindows::with_no_redirection_bitmap(window_attributes, true)
-    } else {
-        window_attributes
+    let window_attributes = {
+        // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 菜单栏启用时不能使用 NOREDIRECTIONBITMAP
+        // 该标志会让窗口没有 GDI 重定向表面：原生菜单栏画不出来，OpenGL 画面也会变成全透明。
+        let menubar_enabled = settings.get::<WindowSettings>().menubar;
+        if !cmd_line_settings.opengl && !menubar_enabled {
+            WindowAttributesExtWindows::with_no_redirection_bitmap(window_attributes, true)
+        } else {
+            window_attributes
+        }
+        // [CUSTOM-END] CUSTOM-20261025-001
     };
 
     let frame_decoration = cmd_line_settings.frame;

@@ -55,7 +55,8 @@ window 输入 ──▶ bridge(ui_commands) ──UiCommand──▶ nvim
 | 鼠标 / 键盘输入                | `src/window/mouse_manager.rs`、`src/window/keyboard_manager.rs`                                                  | renderer                        | §2.7 |
 | 设置项（新增/改默认）          | `src/settings/{mod,config,window_size,font,from_value}.rs` + `lua/init.lua` + 各 `*Settings` struct               | —                               | §2.8 |
 | 剪贴板                         | `src/clipboard.rs`、`src/bridge/clipboard.rs`                                                                    | —                               | §2.9 |
-| 单实例复用（macOS）            | `src/ipc/handoff.rs`、`src/main.rs::maybe_handoff`、`src/window/application.rs::prepare_open_files`              | —                               | §2.10 |
+| 单实例复用（macOS/Windows）    | `src/ipc/handoff.rs`、`src/main.rs::maybe_handoff`、`src/window/application.rs::prepare_open_files`              | —                               | §2.10 |
+| Windows 原生菜单栏             | `src/window/menubar.rs`、`src/window/window_wrapper.rs`（菜单命令/显隐）、`src/bridge/handler.rs`（set_menu）、`src/renderer/mod.rs`（渲染器选择）、`lua/init.lua`（refresh_menu/menu_command） | renderer 内部实现、editor | §2.12 |
 | 打包 / 发布                    | `wix/`（Windows）、`.github/workflows/`、`Cargo.toml`                                                            | 业务代码                        | §2.11 |
 
 > 定位优先级：**函数名 grep > 本表**。表过期时以代码为准并顺手订正本表。
@@ -134,11 +135,21 @@ nvim 发 `win_viewport` → editor 发 `DrawCommand::Window{Viewport{scroll_delt
 - `src/clipboard.rs`：`Clipboard`/`ClipboardHandle`（多 provider）
 - `src/bridge/clipboard.rs`：与 nvim 的 get/set 桥接
 
-### 2.10 单实例复用（macOS 已实现，Windows 待移植）
-- `src/ipc/handoff.rs`：unix socket listener、`HandoffRequest`、`try_handoff`
+### 2.10 单实例复用（macOS/Windows）
+- `src/ipc/handoff.rs`：回环 TCP / unix socket listener、`HandoffRequest`、`try_handoff`
 - `src/main.rs::maybe_handoff`：客户端侧（`--reuse-instance`）
 - `src/window/application.rs::prepare_open_files`：服务端处理 `UserEvent::OpenFiles`
 
 ### 2.11 打包
 - `wix/main.wxs`：Windows MSI（含右键「Open with Neovide」注册表）
 - `.github/workflows/`：CI 构建各平台产物
+
+### 2.12 Windows 原生菜单栏（CUSTOM-20261025-001）
+- 数据流：nvim `:amenu` → `lua/init.lua::M.refresh_menu`（VimEnter 自动 + `:NeovideRefreshMenu`）→ `rpcnotify("neovide.set_menu", tree)` → `src/bridge/handler.rs` → `WindowCommand::SetMenu` → `src/window/window_wrapper.rs::handle_set_menu` → `src/window/menubar.rs::Menubar`（muda）
+- 点击：muda `MenuEvent` → `menubar::set_event_handler`（`Application::new` 注册）→ `UserEvent::MenuCommand` → `handle_menu_command` → `ParallelCommand::MenuCommand` → `lua::neovide.private.menu_command` → `:emenu <mode> <path>`
+- 关键点：
+  - 菜单树在窗口创建前到达时缓存在 `RouteCore::menu`，创建窗口时挂载；已存在窗口则 `Menubar::rebuild`
+  - `g:neovide_menubar`（`WindowSettings::menubar`）控制显隐；全屏与 `--frame none` 自动隐藏
+  - Alt 键由 `menubar.rs::alt_filter_proc` 窗口子类拦掉 `SC_KEYMENU`/`WM_SYSCHAR`（AltGr 除外）
+  - **D3D 后端无法显示系统菜单栏**（`WS_EX_NOREDIRECTIONBITMAP`），启用菜单栏时 `build_window_config` 自动改用 OpenGL，且 `create_window` 必须同步跳过 `with_no_redirection_bitmap`，否则 GL 窗口全透明
+  - 菜单分隔线：nvim 侧用 `-sepN-` 占位，`lua/init.lua` 转成 `{separator=true}`

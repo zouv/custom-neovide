@@ -1,0 +1,27 @@
+# nvim 侧配置（custom-neovide）
+
+这里的文件是**用户 nvim 配置**的同步副本，不属于 Rust 工程，不参与编译。
+本机已安装到 `%LOCALAPPDATA%\nvim\lua\config\`，并由 `init.lua` require：
+
+```lua
+require("config.neovide_menu")
+require("config.neovide_welcome")
+```
+
+| 文件 | 作用 |
+| ---- | ---- |
+| `neovide_menu.lua` | 用 `:amenu` 定义原生菜单栏内容；菜单路径即菜单项 id，点击后由 `:emenu` 执行 |
+| `neovide_welcome.lua` | 关闭最后一个文件缓冲区或在最后一个窗口 `:q` 时保留窗口并显示 snacks dashboard |
+
+依赖：
+
+- 菜单栏需要 `g:neovide_menubar = true`（默认关闭，本机写在 `lua/config/options.lua`）
+- 欢迎界面依赖 `snacks.nvim` 的 dashboard；缺失时只保留空窗口并输出 WARN
+- 菜单里的快捷键提示要求对应键位真实存在（`<Space>ff`、`<Space>/` 等来自 LazyVim）
+
+注意：
+
+- 菜单名不能包含未转义的 `.`（`:amenu` 的层级分隔符）
+- 分隔线用 `-sepN-` 占位，Neovide 侧会渲染成真正的分隔线
+- 修改 `:amenu` 后执行 `:NeovideRefreshMenu`（或重启）让窗口菜单刷新
+- `neovide_welcome.lua` 判断“最后一个窗口”时只统计非浮动窗口：noice/which-key/notify 的浮窗会让 `nvim_list_wins()` 失真

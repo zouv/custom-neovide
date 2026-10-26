@@ -47,7 +47,10 @@ pub struct WindowSettings {
     pub title_background_color: String,
     #[cfg(target_os = "windows")]
     pub title_text_color: String,
-
+    // [CUSTOM-BEGIN] CUSTOM-20261025-001 - Windows 原生菜单栏开关
+    #[cfg(target_os = "windows")]
+    pub menubar: bool,
+    // [CUSTOM-END] CUSTOM-20261025-001
     #[option = "mousemoveevent"]
     pub mouse_move_event: bool,
     #[option = "lines"]
@@ -97,6 +100,10 @@ impl Default for WindowSettings {
             title_background_color: "".to_string(),
             #[cfg(target_os = "windows")]
             title_text_color: "".to_string(),
+            // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 默认关闭，保持上游行为
+            #[cfg(target_os = "windows")]
+            menubar: false,
+            // [CUSTOM-END] CUSTOM-20261025-001
 
             // Neovim options
             mouse_move_event: false,

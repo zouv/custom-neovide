@@ -266,13 +266,27 @@ impl SerialCommand {
 #[derive(Debug, Clone, AsRefStr)]
 pub enum ParallelCommand {
     Quit,
-    Resize { width: u64, height: u64 },
-    FileDrop { path: String, tabs: Option<bool> },
+    Resize {
+        width: u64,
+        height: u64,
+    },
+    FileDrop {
+        path: String,
+        tabs: Option<bool>,
+    },
     FocusLost,
     FocusGained,
     DisplayAvailableFonts(Vec<String>),
-    ShowError { lines: Vec<String> },
-    SetBackground { background: String },
+    ShowError {
+        lines: Vec<String>,
+    },
+    SetBackground {
+        background: String,
+    },
+    // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 执行菜单项
+    #[cfg(windows)]
+    MenuCommand(String),
+    // [CUSTOM-END] CUSTOM-20261025-001
 }
 
 async fn display_available_fonts(
@@ -374,6 +388,14 @@ impl ParallelCommand {
                 set_background_if_allowed(&background, nvim).await;
                 Ok(())
             }
+            // [CUSTOM-BEGIN] CUSTOM-20261025-001 - 菜单点击交由 nvim 的 :emenu 执行
+            #[cfg(windows)]
+            ParallelCommand::MenuCommand(path) => nvim
+                .exec_lua("neovide.private.menu_command(...)", call_args![path])
+                .await
+                .map(|_| ())
+                .context("MenuCommand failed"),
+            // [CUSTOM-END] CUSTOM-20261025-001
         };
 
         if let Err(error) = result {

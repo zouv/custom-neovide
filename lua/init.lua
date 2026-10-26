@@ -246,6 +246,105 @@ vim.api.nvim_create_autocmd({ "VimLeavePre" }, {
     end,
 })
 
+-- [CUSTOM-BEGIN] CUSTOM-20261025-001 - Windows 原生菜单栏：数据源与执行入口
+local MENUBAR_IGNORED_ROOTS = {
+    PopUp = true,
+    ToolBar = true,
+    WinBar = true,
+    NvimBuiltin = true,
+}
+
+local function menu_root_allowed(name)
+    return not MENUBAR_IGNORED_ROOTS[name]
+        and name:find("^PopUp") == nil
+        and name:sub(1, 1) ~= "]"
+end
+
+local function build_menu_tree(items, parent_path, hints, depth)
+    local result = {}
+    for _, item in ipairs(items or {}) do
+        local name = item.name or ""
+        local hidden = item.hidden == 1
+        local allowed = depth > 0 or menu_root_allowed(name)
+        if name ~= "" and not hidden and allowed then
+            local path = parent_path and (parent_path .. "." .. name) or name
+            if name:find("%-sep%d+%-$") then
+                -- 分隔线占位项（例如 文件.-sep1-）
+                table.insert(result, { separator = true, priority = item.priority })
+            elseif item.submenus and #item.submenus > 0 then
+                local children = build_menu_tree(item.submenus, path, hints, depth + 1)
+                if #children > 0 then
+                    table.insert(result, {
+                        title = name,
+                        items = children,
+                        priority = item.priority,
+                    })
+                end
+            else
+                table.insert(result, {
+                    title = name,
+                    path = path,
+                    hint = hints[path],
+                    priority = item.priority,
+                })
+            end
+        end
+    end
+    table.sort(result, function(a, b)
+        return (a.priority or 500) < (b.priority or 500)
+    end)
+    return result
+end
+
+--- 把 nvim 的菜单树发给 Neovide。修改过 :amenu 之后调用一次即可。
+function M.refresh_menu()
+    if vim.fn.has("win32") == 0 then
+        return
+    end
+    local ok, items = pcall(vim.fn.menu_get, "")
+    if not ok or type(items) ~= "table" then
+        return
+    end
+    local hints = type(vim.g.neovide_menu_hints) == "table" and vim.g.neovide_menu_hints or {}
+    pcall(rpcnotify, "neovide.set_menu", build_menu_tree(items, nil, hints, 0))
+end
+
+--- Neovide 点击菜单项时调用，按当前模式执行对应的 :emenu。
+M.private.menu_command = function(path)
+    local mode = vim.api.nvim_get_mode().mode:sub(1, 1)
+    local emenu_mode = ({
+        n = "n",
+        i = "i",
+        v = "v",
+        V = "v",
+        ["\22"] = "v",
+        s = "v",
+        S = "v",
+        c = "c",
+        t = "t",
+        R = "n",
+        o = "n",
+    })[mode] or "n"
+    local escaped = path:gsub("\\", "\\\\"):gsub(" ", "\\ "):gsub("|", "\\|")
+    if not pcall(vim.cmd, "emenu " .. emenu_mode .. " " .. escaped) then
+        pcall(vim.cmd, "emenu n " .. escaped)
+    end
+end
+
+-- 用户配置里的 :amenu 在 VimEnter 时才全部就绪，因此启动后刷新一次。
+vim.api.nvim_create_autocmd("VimEnter", {
+    once = true,
+    nested = true,
+    callback = function()
+        vim.schedule(M.refresh_menu)
+    end,
+})
+
+vim.api.nvim_create_user_command("NeovideRefreshMenu", M.refresh_menu, {
+    desc = "Refresh the Neovide native menu bar",
+})
+-- [CUSTOM-END] CUSTOM-20261025-001
+
 M.private.dropfile = function(filename, tabs)
     vim.api.nvim_cmd({
         cmd = "drop",
