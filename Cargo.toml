@@ -1,6 +1,6 @@
 [package]
 name = "neovide"
-version = "0.16.2"
+version = "0.16.2-custom.2"
 edition = "2021"
 build = "build.rs"
 resolver = "2"
@@ -230,7 +230,7 @@ debug = true
 name = "Neovide"
 identifier = "com.neovide.neovide"
 icon = ["assets/neovide.ico"]
-version = "0.16.0"
+version = "0.16.2-custom.2"
 resources = []
 copyright = "Copyright (c) Neovide Contributors 2025. All rights reserved."
 category = "Productivity"
