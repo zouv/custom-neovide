@@ -56,7 +56,8 @@ window 输入 ──▶ bridge(ui_commands) ──UiCommand──▶ nvim
 | 设置项（新增/改默认）          | `src/settings/{mod,config,window_size,font,from_value}.rs` + `lua/init.lua` + 各 `*Settings` struct               | —                               | §2.8 |
 | 剪贴板                         | `src/clipboard.rs`、`src/bridge/clipboard.rs`                                                                    | —                               | §2.9 |
 | 单实例复用（macOS/Windows）    | `src/ipc/handoff.rs`、`src/main.rs::maybe_handoff`、`src/window/application.rs::prepare_open_files`              | —                               | §2.10 |
-| Windows 原生菜单栏             | `src/window/menubar.rs`、`src/window/window_wrapper.rs`（菜单命令/显隐）、`src/bridge/handler.rs`（set_menu）、`src/renderer/mod.rs`（渲染器选择）、`lua/init.lua`（refresh_menu/menu_command） | renderer 内部实现、editor | §2.12 |
+| Windows 原生菜单栏             | `src/window/menubar.rs`、`src/window/window_wrapper.rs`（菜单命令/显隐）、`src/window/about.rs`（帮助.关于）、`src/bridge/handler.rs`（set_menu/about）、`src/renderer/mod.rs`（渲染器选择）、`lua/init.lua`（refresh_menu/menu_command） | renderer 内部实现、editor | §2.12 |
+| 系统托盘 / 关闭到托盘          | `src/window/tray.rs`、`src/window/application.rs`（CloseRequested 拦截/托盘生命周期）、`src/window/window_wrapper.rs`（hidden_to_tray/渲染暂停）、`src/window/settings.rs`（g:neovide_tray） | bridge、editor、renderer 内部实现 | §2.13 |
 | 打包 / 发布                    | `wix/`（Windows）、`.github/workflows/`、`Cargo.toml`                                                            | 业务代码                        | §2.11 |
 
 > 定位优先级：**函数名 grep > 本表**。表过期时以代码为准并顺手订正本表。
@@ -153,3 +154,13 @@ nvim 发 `win_viewport` → editor 发 `DrawCommand::Window{Viewport{scroll_delt
   - Alt 键由 `menubar.rs::alt_filter_proc` 窗口子类拦掉 `SC_KEYMENU`/`WM_SYSCHAR`（AltGr 除外）
   - **D3D 后端无法显示系统菜单栏**（`WS_EX_NOREDIRECTIONBITMAP`），启用菜单栏时 `build_window_config` 自动改用 OpenGL，且 `create_window` 必须同步跳过 `with_no_redirection_bitmap`，否则 GL 窗口全透明
   - 菜单分隔线：nvim 侧用 `-sepN-` 占位，`lua/init.lua` 转成 `{separator=true}`
+  - 「帮助.关于」：菜单 RHS 执行 `neovide_menu.lua::actions.about` → `rpcnotify("neovide.about", text)`（文本由 `M.about_text()` 组装：Neovide/Neovim 版本、系统、配置目录）→ `src/bridge/handler.rs::neovide.about` → `UserEvent::ShowAbout` → `src/window/about.rs` 用 Win32 `MessageBoxW` 弹出原生对话框（owner 为当前窗口）
+
+### 2.13 Windows 关闭到系统托盘（CUSTOM-20261029-001）
+- 开关：`g:neovide_tray`（`WindowSettings::tray`，Windows，默认 false）；只影响窗口 X/Alt+F4，不影响 nvim 内 `:qa`
+- 关闭拦截：`Application::window_event` 收到 `CloseRequested` → `try_hide_to_tray`：先 `tray::Tray::create`（失败则 warn 并回退上游 `handle_quit`）→ `WinitWindowWrapper::hide_window_to_tray`（`RouteState::hidden_to_tray = true` + `Window::set_visible(false)`）
+- 托盘模块：`src/window/tray.rs`（tray-icon + muda）。左键 `TrayIconEvent::Click(Left, Up)` → `UserEvent::TrayActivate`；右键菜单 ID `neovide-tray-show` / `neovide-tray-quit` 复用 `menubar::set_event_handler`（`Application::new` 注册）安装的全局 `MenuEvent` 回调 → `UserEvent::MenuCommand` → `Application::user_event`
+- 恢复：`Application::show_last_hidden_window` → `show_window_from_tray`（`set_visible(true)` + 取消最小化 + `focus_window`）；`sync_tray_visibility` 在 `schedule_next_event` 开头按 `has_hidden_window()` 自动销毁图标（图标只在隐藏期间存在）
+- 退出：托盘「退出」→ `handle_tray_quit`：`show_all_windows_from_tray`（让确认框可见）→ 删除托盘 → 对每个 route 调 `handle_quit`（`ParallelCommand::Quit`，保留 `confirm_quit` 确认）
+- 渲染暂停：隐藏窗口在 `prepare_frame` / `draw_frame` / `request_redraw_for_window` / `get_event_deadline` 中跳过；全部窗口隐藏时 `next_control_flow` 返回 `ControlFlow::Wait`，仅由 EventLoopProxy 事件唤醒
+- nvim 侧退出（`:qa`、`neovide.quit`、崩溃）不经过托盘逻辑：`NeovimExited` → route 移除 → `Application::exiting` 显式 drop 托盘

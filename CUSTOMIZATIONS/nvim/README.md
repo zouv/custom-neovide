@@ -16,6 +16,8 @@ require("config.neovide_welcome")
 依赖：
 
 - 菜单栏需要 `g:neovide_menubar = true`（默认关闭，本机写在 `lua/config/options.lua`）
+- 关闭到系统托盘需要 `g:neovide_tray = true`（默认关闭，本机写在 `lua/config/options.lua`）；只影响窗口 X / Alt+F4，nvim 内 `:qa` 仍正常退出
+- 「帮助.关于」的文本在 `neovide_menu.lua::M.about_text()` 组装，点击后经 `rpcnotify("neovide.about", text)` 由 Rust 侧弹出原生对话框
 - 欢迎界面依赖 `snacks.nvim` 的 dashboard；缺失时只保留空窗口并输出 WARN
 - 菜单里的快捷键提示要求对应键位真实存在（`<Space>ff`、`<Space>/` 等来自 LazyVim）
 

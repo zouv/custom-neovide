@@ -51,20 +51,22 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 | .agents/（skills/neovide-record-change、neovide-merge-upstream、neovide-publish、neovide-release） | new-file | 无标记（纯自定义） | — | AI Agent 项目级 skills（4 个） | keep-ours | active |
 | AGENTS.md、CLAUDE.md、.gitattributes | new-file | 无标记（纯自定义） | — | 会话级规则入口 + 行尾规范化（.bat CRLF / .sh LF） | keep-ours | active |
 | .gitignore | config | CUSTOM-20261024-001、CUSTOM-20261024-003 | CUSTOM-20261024-001→003 | 忽略 AI 工具会话级临时目录 + 本地打包产物 dist/ | merge-manual | active |
-| Cargo.toml | dependency | CUSTOM-20261024-002、CUSTOM-20261025-001 | CUSTOM-20261024-002→20261025-001 | windows 依赖增加 Win32_UI_WindowsAndMessaging（AllowSetForegroundWindow）、Win32_UI_Shell / KeyboardAndMouse（菜单栏子类化），并引入 muda | merge-manual | active |
+| Cargo.toml | dependency | CUSTOM-20261024-002、CUSTOM-20261025-001、CUSTOM-20261029-001 | CUSTOM-20261024-002→20261025-001→20261029-001 | windows 依赖增加 Win32_UI_WindowsAndMessaging（AllowSetForegroundWindow）、Win32_UI_Shell / KeyboardAndMouse（菜单栏子类化），引入 muda 与 tray-icon | merge-manual | active |
 | src/ipc/handoff.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 单实例复用传输层（回环 TCP + PID endpoint 文件 + 前台授权） | merge-manual | active |
 | src/main.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 启用 ipc 模块与 maybe_handoff | merge-manual | active |
 | src/bridge/mod.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 导出 file-drop 队列并在 ui_attach 后标记就绪 | merge-manual | active |
 | src/bridge/ui_commands.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001 | CUSTOM-20261024-002→20261025-001 | Windows 复用 file-drop 排队/就绪机制；新增 MenuCommand 执行 `:emenu` | merge-manual | active |
-| src/bridge/handler.rs | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | 接收 `neovide.set_menu` 通知，解析菜单树并下发 SetMenu 窗口命令 | merge-manual | active |
-| src/window/mod.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001 | CUSTOM-20261024-002→20261025-001 | Windows 启用 OpenFiles 事件；新增 menubar 模块、WindowCommand::SetMenu、UserEvent::MenuCommand；菜单栏启用时跳过 NOREDIRECTIONBITMAP | merge-manual | active |
-| src/window/application.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001 | CUSTOM-20261024-002→20261025-001 | Windows 处理 OpenFiles 事件（激活窗口 + 转发文件）；注册 muda 全局菜单事件处理器 | merge-manual | active |
-| src/window/window_wrapper.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001 | CUSTOM-20261024-002→20261025-001 | Windows 新增 activate_and_focus_window（恢复最小化 + 抢前台）；菜单栏挂载/重建/显隐/主题与点击转发 | merge-manual | active |
+| src/bridge/handler.rs | modified-upstream | CUSTOM-20261025-001、CUSTOM-20261029-003 | CUSTOM-20261025-001→20261029-003 | 接收 `neovide.set_menu` 通知，解析菜单树并下发 SetMenu 窗口命令；接收 `neovide.about` 通知并转发 ShowAbout | merge-manual | active |
+| src/window/mod.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001、CUSTOM-20261029-001、CUSTOM-20261029-003 | CUSTOM-20261024-002→20261025-001→20261029-001→20261029-003 | Windows 启用 OpenFiles 事件；新增 menubar / tray / about 模块、WindowCommand::SetMenu、UserEvent::MenuCommand / TrayActivate / ShowAbout；菜单栏启用时跳过 NOREDIRECTIONBITMAP | merge-manual | active |
+| src/window/application.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001、CUSTOM-20261029-001、CUSTOM-20261029-003 | CUSTOM-20261024-002→20261025-001→20261029-001→20261029-003 | Windows 处理 OpenFiles 事件（激活窗口 + 转发文件）；注册 muda 全局菜单事件处理器；CloseRequested 隐藏到托盘、托盘图标生命周期与托盘退出；ShowAbout 弹出原生关于对话框 | merge-manual | active |
+| src/window/window_wrapper.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001、CUSTOM-20261029-001 | CUSTOM-20261024-002→20261025-001→20261029-001 | Windows 新增 activate_and_focus_window（恢复最小化 + 抢前台）；菜单栏挂载/重建/显隐/主题与点击转发；托盘隐藏状态、恢复/全部恢复、隐藏窗口跳过渲染调度 | merge-manual | active |
 | src/window/menubar.rs | new-file | CUSTOM-20261025-001 | CUSTOM-20261025-001 | Windows 原生菜单栏（muda 菜单树、Alt 键过滤子类、主题） | keep-ours | active |
-| src/window/settings.rs | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | 新增 g:neovide_menubar（Windows，默认 false） | merge-manual | active |
+| src/window/tray.rs | new-file | CUSTOM-20261029-001 | CUSTOM-20261029-001 | Windows 系统托盘（tray-icon：图标、右键菜单、左键恢复事件；与菜单栏共用 muda 事件） | keep-ours | active |
+| src/window/about.rs | new-file | CUSTOM-20261029-003 | CUSTOM-20261029-003 | Windows 原生「关于 Neovide」对话框（Win32 MessageBoxW，内容由 nvim 侧组装） | keep-ours | active |
+| src/window/settings.rs | modified-upstream | CUSTOM-20261025-001、CUSTOM-20261029-001 | CUSTOM-20261025-001→20261029-001 | 新增 g:neovide_menubar（Windows，默认 false）、g:neovide_tray（Windows，默认 false） | merge-manual | active |
 | src/renderer/mod.rs | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | Windows 启用菜单栏时强制走 OpenGL（D3D 的 NOREDIRECTIONBITMAP 让原生菜单栏不可见） | merge-manual | active |
 | lua/init.lua | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | 菜单树采集/发送（neovide.refresh_menu）、点击执行（:emenu）、启动后自动刷新 | merge-manual | active |
-| CUSTOMIZATIONS/nvim/ | new-file | 无标记（纯自定义） | CUSTOM-20261025-002→20261026-001 | nvim 侧配置副本：菜单内容定义 + 关闭最后文件保留窗口（窗口计数排除浮窗） | keep-ours | active |
+| CUSTOMIZATIONS/nvim/ | new-file | 无标记（纯自定义） | CUSTOM-20261025-002→20261026-001→20261029-002→20261029-003 | nvim 侧配置副本：菜单内容定义（含帮助.关于）+ 关闭最后文件保留窗口（窗口计数排除浮窗）；README 记录本机 `options.lua` 启用 menubar/tray | keep-ours | active |
 | src/utils/mod.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 resolved_cwd / resolve_relative_path | merge-manual | active |
 | src/cmd_line.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 启用 --reuse-instance / --new-window 参数 + argv_chdir | merge-manual | active |
 | src/version.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 release_channel | merge-manual | active |
@@ -75,6 +77,30 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 ## 变更日志（按次）
 
 > 时间倒序 append-only。格式见 `neovide-record-change` skill。历史条目永不删改。
+
+### 2026-10-29 - CUSTOM-20261029-003
+
+- **功能**：菜单栏「帮助」新增「关于」，点击弹出原生对话框显示当前版本等应用信息
+- **改动文件**：`src/window/about.rs`（新增）、`src/window/mod.rs`、`src/window/application.rs`、`src/bridge/handler.rs`、`CUSTOMIZATIONS/nvim/neovide_menu.lua`（本机同步到 `%LOCALAPPDATA%\nvim\lua\config\`）
+- **详细说明**：nvim 侧 `neovide_menu.lua` 增加「帮助.关于」菜单项和 `about` action；`M.about_text()` 组装 Neovide 版本、Neovim 版本、系统与配置目录，点击后通过 `rpcnotify(neovide_channel_id, "neovide.about", text)` 发给 Neovide。Rust 侧 `bridge/handler.rs` 新增 `neovide.about` 通知分支 → `UserEvent::ShowAbout` → `src/window/about.rs` 用 Win32 `MessageBoxW` 弹出原生对话框（owner 为当前窗口）。信息由 nvim 侧组装，Neovim 版本天然准确；Neovide 版本取自 `vim.g.neovide_version`（Rust `BUILD_VERSION`，含 git describe，工作区未提交时带 `-dirty`）。
+- **验证方式**：`cargo fmt --check`/`check`/`test`（167 passed）；headless nvim 验证 `menu_get('帮助')` 含「关于」且 `about_text()` 输出 `Neovide 0.16.2-custom.2 / Neovim 0.12.2 / Windows_NT 10.0.19045 (x86_64) / 配置目录`；GUI 实测用 Win32 `WM_COMMAND` 触发菜单项（id 1034），出现 `#32770` 对话框「关于 Neovide」，正文含版本与 Neovim 信息，`WM_CLOSE` 可关闭。测试期间本机已有 Neovide 会话，新实例检测到现有 IPC listener 后跳过监听，未覆盖 endpoint。
+- **基于上游版本**：0.16.2
+
+### 2026-10-29 - CUSTOM-20261029-002
+
+- **功能**：在本机 nvim 配置中启用 `g:neovide_tray = true`
+- **改动文件**：仓库外 `%LOCALAPPDATA%\nvim\lua\config\options.lua`（同步说明在 `CUSTOMIZATIONS/nvim/README.md`）
+- **详细说明**：在 `options.lua` 的 `if vim.g.neovide then` 块内、`neovide_menubar` 之后增加 `vim.g.neovide_tray = true`，使本机 Neovide 关闭窗口时隐藏到托盘；仓库侧同步更新 `CUSTOMIZATIONS/nvim/README.md` 的依赖说明（tray 只覆盖窗口 X / Alt+F4，`:qa` 仍正常退出）。
+- **验证方式**：真实配置 headless 加载验证输出 `neovide_menubar=true neovide_tray=true`；GUI 行为已用等价临时 init（设置 `vim.g.neovide_tray = true`）实测：WM_CLOSE 后窗口隐藏、进程存活、托盘存在，模拟托盘左键恢复窗口，隐藏时结束 nvim 进程应用正确退出。本机当时已有 Neovide 会话在运行，未重复启动第二个 GUI 实例以免覆盖单实例 IPC endpoint。
+- **基于上游版本**：0.16.2
+
+### 2026-10-29 - CUSTOM-20261029-001
+
+- **功能**：Windows 关闭窗口后隐藏到系统托盘（可选，默认关闭）
+- **改动文件**：`src/window/tray.rs`（新增）、`src/window/application.rs`、`src/window/window_wrapper.rs`、`src/window/mod.rs`、`src/window/settings.rs`、`Cargo.toml`
+- **详细说明**：新增 `g:neovide_tray`（Windows，默认 false）。启用后点击窗口 X / Alt+F4 时先惰性创建 tray-icon 托盘（0.26.1，与现有 muda 0.21 共用菜单事件），**创建成功才隐藏窗口**（`RouteState::hidden_to_tray` + `set_visible(false)`），nvim/Route/VSync 全部保留；托盘左键或右键菜单「显示窗口」恢复窗口并销毁图标（图标只在隐藏期间存在）；右键「退出 Neovide」先恢复所有窗口（保证 nvim 未保存确认框可见）再对每个 route 发送 `ParallelCommand::Quit`。隐藏窗口在 `prepare_frame`/`draw_frame`/`request_redraw_for_window`/deadline 计算中全部跳过，全部隐藏时 `ControlFlow::Wait`，避免事件循环空转。托盘创建失败时回退为上游正常关闭退出，避免窗口隐藏后无法恢复。`g:neovide_tray` 默认 false 保证升级后行为不变；`:qa`/`:qa!`、`neovide.quit` 与 nvim 崩溃仍按原链路退出，退出时显式 drop 托盘。
+- **验证方式**：`cargo fmt --check`、`cargo check`、`cargo clippy --all-targets --all-features`、`cargo test`（167 passed）；GUI 实测（PowerShell 驱动 Win32 API，按类名 `Window Class` 定位主窗口）：默认关闭时 X 正常退出；启用后 X 隐藏且进程存活、`tray_icon_app` 托盘窗口存在、隐藏 4 秒 CPU 增量 0.000 秒；模拟托盘左键窗口恢复且托盘移除；模拟托盘菜单 Show/Quit 均生效（Quit 后进程退出）；隐藏时结束 nvim 子进程，应用正确退出。
+- **基于上游版本**：0.16.2
 
 ### 2026-10-26 - CUSTOM-20261026-001
 

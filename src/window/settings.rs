@@ -51,6 +51,10 @@ pub struct WindowSettings {
     #[cfg(target_os = "windows")]
     pub menubar: bool,
     // [CUSTOM-END] CUSTOM-20261025-001
+    // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 关闭窗口后驻留系统托盘
+    #[cfg(target_os = "windows")]
+    pub tray: bool,
+    // [CUSTOM-END] CUSTOM-20261029-001
     #[option = "mousemoveevent"]
     pub mouse_move_event: bool,
     #[option = "lines"]
@@ -104,6 +108,10 @@ impl Default for WindowSettings {
             #[cfg(target_os = "windows")]
             menubar: false,
             // [CUSTOM-END] CUSTOM-20261025-001
+            // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 默认关闭，升级后行为不变
+            #[cfg(target_os = "windows")]
+            tray: false,
+            // [CUSTOM-END] CUSTOM-20261029-001
 
             // Neovim options
             mouse_move_event: false,

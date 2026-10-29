@@ -89,6 +89,31 @@ local function show_keymaps()
   end
 end
 
+local function notify(method, ...)
+  local channel = vim.g.neovide_channel_id
+  if not channel then
+    return
+  end
+  local ok, err = pcall(vim.rpcnotify, channel, method, ...)
+  if not ok then
+    vim.notify("Neovide RPC 失败：" .. tostring(err), vim.log.levels.WARN)
+  end
+end
+
+function M.about_text()
+  local version = vim.g.neovide_version or "unknown"
+  local v = vim.version()
+  local uname = (vim.uv or vim.loop).os_uname()
+  return table.concat({
+    ("Neovide %s"):format(version),
+    ("Neovim %d.%d.%d"):format(v.major, v.minor, v.patch),
+    ("系统 %s %s (%s)"):format(uname.sysname, uname.release, uname.machine),
+    ("配置目录 %s"):format(vim.fn.stdpath("config")),
+    "",
+    "custom-neovide：基于 neovide 的自定义版本",
+  }, "\n")
+end
+
 M.actions = {
   new_file = function()
     vim.cmd("enew")
@@ -134,6 +159,9 @@ M.actions = {
   show_keymaps = show_keymaps,
   config = function()
     vim.cmd("NeovideConfig")
+  end,
+  about = function()
+    notify("neovide.about", M.about_text())
   end,
 }
 
@@ -197,6 +225,8 @@ local menudefs = {
   -- 帮助
   { "50.10", "帮助.快捷键", action("show_keymaps") },
   { "50.20", "帮助.设置", action("config") },
+  { "50.25", "帮助.-sep1-", "<Nop>" },
+  { "50.30", "帮助.关于", action("about") },
 }
 
 for _, item in ipairs(menudefs) do

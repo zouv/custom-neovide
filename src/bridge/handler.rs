@@ -251,6 +251,21 @@ impl Handler for NeovimHandler {
                 self.send_window_command(WindowCommand::SetMenu(entries));
             }
             // [CUSTOM-END] CUSTOM-20261025-001
+            // [CUSTOM-BEGIN] CUSTOM-20261029-003 - 帮助.关于：把 nvim 组装的文本交给原生对话框
+            #[cfg(windows)]
+            "neovide.about" => {
+                let message = arguments
+                    .first()
+                    .and_then(|value| value.as_str())
+                    .unwrap_or("Neovide")
+                    .to_owned();
+                let _ = self
+                    .proxy
+                    .lock()
+                    .unwrap()
+                    .send_event(EventPayload::all(UserEvent::ShowAbout(message)));
+            }
+            // [CUSTOM-END] CUSTOM-20261029-003
             "neovide.focus_window" => {
                 self.send_window_command(WindowCommand::FocusWindow);
             }

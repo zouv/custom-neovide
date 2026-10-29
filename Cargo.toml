@@ -130,6 +130,10 @@ windows = { version = "0.62.0", features = [
 # [CUSTOM-BEGIN] CUSTOM-20261025-001 - 原生菜单栏（nvim :amenu 内容映射到 Win32 菜单）
 muda = { version = "0.21.2", default-features = false }
 # [CUSTOM-END] CUSTOM-20261025-001
+# [CUSTOM-BEGIN] CUSTOM-20261029-001 - 关闭到系统托盘
+# tray-icon 0.26 依赖 muda 0.21，和上面的菜单栏共用同一份 muda/菜单事件。
+tray-icon = { version = "0.26.1", default-features = false }
+# [CUSTOM-END] CUSTOM-20261029-001
 windows-registry = "0.6.1"
 wslpath-rs = "0.2"
 

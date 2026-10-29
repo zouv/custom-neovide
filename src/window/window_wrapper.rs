@@ -154,6 +154,9 @@ struct RouteState {
     requested_lines: Option<u32>,
     window_padding: WindowPadding,
     is_minimized: bool,
+    // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 窗口已隐藏到系统托盘
+    hidden_to_tray: bool,
+    // [CUSTOM-END] CUSTOM-20261029-001
     ime_enabled: bool,
     ime_area: (dpi::PhysicalPosition<u32>, dpi::PhysicalSize<u32>),
     inferred_theme: Option<Theme>,
@@ -170,6 +173,9 @@ impl RouteState {
             requested_lines: None,
             window_padding: WindowPadding { left: 0, right: 0, top: 0, bottom: 0 },
             is_minimized: false,
+            // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 初始不在托盘
+            hidden_to_tray: false,
+            // [CUSTOM-END] CUSTOM-20261029-001
             ime_enabled: false,
             ime_area: Default::default(),
             inferred_theme: None,
@@ -226,6 +232,10 @@ pub struct WinitWindowWrapper {
     ignore_next_focus_gain: bool,
     #[cfg(target_os = "macos")]
     tab_navigation_hotkeys: TabNavigationHotkeys,
+    // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 最近隐藏到托盘的窗口，用于左键恢复
+    #[cfg(target_os = "windows")]
+    last_hidden_window: Option<WindowId>,
+    // [CUSTOM-END] CUSTOM-20261029-001
 }
 
 impl WinitWindowWrapper {
@@ -264,6 +274,10 @@ impl WinitWindowWrapper {
             ignore_next_focus_gain: false,
             #[cfg(target_os = "macos")]
             tab_navigation_hotkeys: TabNavigationHotkeys::new(settings.as_ref()),
+            // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 初始没有隐藏窗口
+            #[cfg(target_os = "windows")]
+            last_hidden_window: None,
+            // [CUSTOM-END] CUSTOM-20261029-001
         }
     }
 
@@ -356,6 +370,72 @@ impl WinitWindowWrapper {
             route.state.vsync = None;
         }
     }
+
+    // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 关闭窗口后隐藏到系统托盘
+    #[cfg(target_os = "windows")]
+    pub fn is_window_hidden_to_tray(&self, window_id: WindowId) -> bool {
+        self.routes.get(&window_id).map(|route| route.state.hidden_to_tray).unwrap_or(false)
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn has_hidden_window(&self) -> bool {
+        self.routes.values().any(|route| route.state.hidden_to_tray)
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn all_windows_hidden(&self) -> bool {
+        !self.routes.is_empty() && self.routes.values().all(|route| route.state.hidden_to_tray)
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn last_hidden_window(&self) -> Option<WindowId> {
+        self.last_hidden_window
+            .filter(|window_id| self.is_window_hidden_to_tray(*window_id))
+            .or_else(|| {
+                self.routes
+                    .iter()
+                    .find_map(|(window_id, route)| route.state.hidden_to_tray.then_some(*window_id))
+            })
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn hide_window_to_tray(&mut self, window_id: WindowId) -> bool {
+        let Some(route) = self.routes.get_mut(&window_id) else {
+            log::warn!("Cannot hide window {window_id:?} to tray: route not found");
+            return false;
+        };
+        route.state.hidden_to_tray = true;
+        route.window.winit_window.set_visible(false);
+        self.last_hidden_window = Some(window_id);
+        true
+    }
+
+    /// 恢复隐藏到托盘的窗口。返回 false 表示窗口已不存在。
+    #[cfg(target_os = "windows")]
+    pub fn show_window_from_tray(&mut self, window_id: WindowId) -> bool {
+        let Some(route) = self.routes.get_mut(&window_id) else {
+            return false;
+        };
+        route.state.hidden_to_tray = false;
+        let window = route.window.winit_window.clone();
+        // 隐藏窗口不能成为前台窗口，必须先恢复可见再 focus。
+        window.set_visible(true);
+        window.set_minimized(false);
+        window.focus_window();
+        if self.last_hidden_window == Some(window_id) {
+            self.last_hidden_window = None;
+        }
+        true
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn show_all_windows_from_tray(&mut self) {
+        let window_ids: Vec<WindowId> = self.routes.keys().copied().collect();
+        for window_id in window_ids {
+            self.show_window_from_tray(window_id);
+        }
+    }
+    // [CUSTOM-END] CUSTOM-20261029-001
 
     pub fn set_fullscreen(&mut self, window_id: WindowId, fullscreen: bool) {
         let Some(route) = self.routes.get(&window_id) else {
@@ -464,10 +544,20 @@ impl WinitWindowWrapper {
             }
             WindowCommand::ListAvailableFonts => self.send_font_names(target_window_id),
             WindowCommand::FocusWindow => {
+                // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 隐藏到托盘时先恢复窗口
+                #[cfg(target_os = "windows")]
+                if self.is_window_hidden_to_tray(target_window_id) {
+                    self.show_window_from_tray(target_window_id);
+                } else if let Some(route) = &self.routes.get(&target_window_id) {
+                    let window = route.window.winit_window.clone();
+                    window.focus_window();
+                }
+                #[cfg(not(target_os = "windows"))]
                 if let Some(route) = &self.routes.get(&target_window_id) {
                     let window = route.window.winit_window.clone();
                     window.focus_window();
                 }
+                // [CUSTOM-END] CUSTOM-20261029-001
 
                 #[cfg(target_os = "macos")]
                 if let Some(feature) = self.macos_feature_for_window(target_window_id) {
@@ -1448,6 +1538,13 @@ impl WinitWindowWrapper {
             return;
         };
 
+        // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 隐藏到托盘时不绘制
+        #[cfg(target_os = "windows")]
+        if route.state.hidden_to_tray {
+            return;
+        }
+        // [CUSTOM-END] CUSTOM-20261029-001
+
         let mut renderer = route.window.renderer.borrow_mut();
         let window = route.window.winit_window.clone();
         let mut skia_renderer = route.window.skia_renderer.borrow_mut();
@@ -1481,6 +1578,12 @@ impl WinitWindowWrapper {
     }
 
     pub fn request_redraw_for_window(&mut self, window_id: WindowId) -> Option<bool> {
+        // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 隐藏到托盘时不请求重绘
+        #[cfg(target_os = "windows")]
+        if self.is_window_hidden_to_tray(window_id) {
+            return None;
+        }
+        // [CUSTOM-END] CUSTOM-20261029-001
         let route = self.routes.get_mut(&window_id)?;
         let vsync = route.state.vsync.as_mut()?;
         if vsync.uses_winit_throttling() {
@@ -2449,6 +2552,13 @@ impl WinitWindowWrapper {
         if !self.routes.contains_key(&window_id) {
             return ShouldRender::Wait;
         }
+
+        // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 隐藏到托盘时暂停准备渲染
+        #[cfg(target_os = "windows")]
+        if self.is_window_hidden_to_tray(window_id) {
+            return ShouldRender::Wait;
+        }
+        // [CUSTOM-END] CUSTOM-20261029-001
 
         let mut should_render = ShouldRender::Wait;
 

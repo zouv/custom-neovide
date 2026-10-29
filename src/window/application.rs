@@ -135,6 +135,10 @@ pub struct Application {
 
     settings: Arc<Settings>,
     clipboard: Option<Arc<Mutex<Clipboard>>>,
+    // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 关闭到系统托盘
+    #[cfg(target_os = "windows")]
+    tray: Option<super::tray::Tray>,
+    // [CUSTOM-END] CUSTOM-20261029-001
 }
 
 impl Application {
@@ -178,6 +182,10 @@ impl Application {
 
             settings,
             clipboard: Some(clipboard),
+            // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 托盘在首次隐藏窗口时惰性创建
+            #[cfg(target_os = "windows")]
+            tray: None,
+            // [CUSTOM-END] CUSTOM-20261029-001
         }
     }
 
@@ -253,7 +261,7 @@ impl Application {
     // [CUSTOM-BEGIN] CUSTOM-20261024-002 - OpenFiles handling available on Windows too
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     // [CUSTOM-END] CUSTOM-20261024-002
-    fn activate_focused_route(&self) {
+    fn activate_focused_route(&mut self) {
         let Some(window_id) = self.window_wrapper.get_focused_route() else {
             return;
         };
@@ -261,6 +269,15 @@ impl Application {
         if let Some(route_id) = self.window_wrapper.route_id_for_window(window_id) {
             set_active_route_handler(route_id);
         }
+
+        // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 窗口隐藏到托盘时先恢复再聚焦
+        #[cfg(target_os = "windows")]
+        if self.window_wrapper.is_window_hidden_to_tray(window_id) {
+            self.window_wrapper.show_window_from_tray(window_id);
+            self.mark_should_render_for_window(window_id);
+            return;
+        }
+        // [CUSTOM-END] CUSTOM-20261029-001
 
         self.window_wrapper.activate_and_focus_window(window_id);
     }
@@ -379,14 +396,28 @@ impl Application {
     }
 
     fn get_event_deadline(&self) -> Option<Instant> {
-        self.render_states.values().map(|state| self.get_event_deadline_for(state)).min()
+        self.render_states
+            .iter()
+            .filter(|(window_id, _)| !self.window_hidden_for_scheduling(**window_id))
+            .map(|(_, state)| self.get_event_deadline_for(state))
+            .min()
     }
 
     fn next_control_flow(&self, now: Instant) -> ControlFlow {
+        // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 全部窗口隐藏时完全休眠，由托盘/nvim 事件唤醒
+        #[cfg(target_os = "windows")]
+        if self.error_windows.is_empty() && self.window_wrapper.all_windows_hidden() {
+            return ControlFlow::Wait;
+        }
+        // [CUSTOM-END] CUSTOM-20261029-001
         next_control_flow_for(self.get_event_deadline(), !self.error_windows.is_empty(), now)
     }
 
     fn schedule_next_event(&mut self, event_loop: &ActiveEventLoop) {
+        // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 窗口恢复后自动移除托盘图标
+        #[cfg(target_os = "windows")]
+        self.sync_tray_visibility();
+        // [CUSTOM-END] CUSTOM-20261029-001
         self.sync_render_states();
         #[cfg(feature = "profiling")]
         self.aggregate_should_render().plot_tracy();
@@ -419,6 +450,96 @@ impl Application {
             event_loop.exit();
         }
     }
+
+    // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 关闭窗口后隐藏到系统托盘
+    /// 尝试把窗口隐藏到托盘。返回 false 时调用方应继续走上游的关闭退出流程。
+    #[cfg(target_os = "windows")]
+    fn try_hide_to_tray(&mut self, window_id: WindowId) -> bool {
+        if !self.settings.get::<WindowSettings>().tray {
+            return false;
+        }
+        if self.window_wrapper.is_window_hidden_to_tray(window_id) {
+            return true;
+        }
+        if self.tray.is_none() {
+            let icon_path = self.settings.get::<CmdLineSettings>().icon;
+            self.tray = super::tray::Tray::create(self.proxy.clone(), icon_path.as_deref());
+            if self.tray.is_none() {
+                log::warn!("Failed to create tray icon; closing the window normally instead");
+                return false;
+            }
+        }
+        if !self.window_wrapper.hide_window_to_tray(window_id) {
+            // 窗口已不存在：让调用方继续走上游关闭流程，避免吞掉 CloseRequested。
+            return false;
+        }
+        true
+    }
+
+    #[cfg(target_os = "windows")]
+    fn show_last_hidden_window(&mut self) {
+        let window_id = self
+            .window_wrapper
+            .last_hidden_window()
+            .or_else(|| self.window_wrapper.get_focused_route());
+        if let Some(window_id) = window_id {
+            if self.window_wrapper.show_window_from_tray(window_id) {
+                self.mark_should_render_for_window(window_id);
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn handle_tray_quit(&mut self, event_loop: &ActiveEventLoop) {
+        if self.window_wrapper.routes.is_empty() {
+            self.tray = None;
+            event_loop.exit();
+            return;
+        }
+
+        // 先恢复所有窗口，让 nvim 的未保存确认框可见，再走正常的 Quit 流程。
+        self.window_wrapper.show_all_windows_from_tray();
+        let window_ids: Vec<WindowId> = self.window_wrapper.routes.keys().copied().collect();
+        for window_id in &window_ids {
+            self.mark_should_render_for_window(*window_id);
+        }
+        self.tray = None;
+
+        for window_id in window_ids {
+            self.window_wrapper.handle_quit(window_id);
+        }
+    }
+
+    /// 托盘只在存在隐藏窗口时存在；窗口恢复或退出后立即移除图标。
+    #[cfg(target_os = "windows")]
+    fn sync_tray_visibility(&mut self) {
+        if self.tray.is_some() && !self.window_wrapper.has_hidden_window() {
+            self.tray = None;
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn window_hidden_for_scheduling(&self, window_id: WindowId) -> bool {
+        self.window_wrapper.is_window_hidden_to_tray(window_id)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn window_hidden_for_scheduling(&self, _window_id: WindowId) -> bool {
+        false
+    }
+    // [CUSTOM-END] CUSTOM-20261029-001
+
+    // [CUSTOM-BEGIN] CUSTOM-20261029-003 - 帮助.关于
+    #[cfg(target_os = "windows")]
+    fn show_about_dialog(&self, message: &str) {
+        let window = self
+            .window_wrapper
+            .get_focused_route()
+            .and_then(|window_id| self.window_wrapper.routes.get(&window_id))
+            .map(|route| route.window.winit_window.as_ref());
+        super::about::show(message, window);
+    }
+    // [CUSTOM-END] CUSTOM-20261029-003
 
     fn teardown(&mut self) {
         // Drop the clipboard while the event loop is still alive so Wayland handles are released
@@ -569,6 +690,13 @@ impl Application {
         let now = Instant::now();
 
         for window_id in window_ids {
+            // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 隐藏到托盘的窗口不参与渲染调度
+            #[cfg(target_os = "windows")]
+            if self.window_wrapper.is_window_hidden_to_tray(window_id) {
+                continue;
+            }
+            // [CUSTOM-END] CUSTOM-20261029-001
+
             let skipped_frame = self
                 .render_states
                 .get(&window_id)
@@ -637,6 +765,12 @@ impl Application {
     }
 
     fn redraw_requested(&mut self, window_id: WindowId) {
+        // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 隐藏到托盘时忽略重绘请求
+        #[cfg(target_os = "windows")]
+        if self.window_wrapper.is_window_hidden_to_tray(window_id) {
+            return;
+        }
+        // [CUSTOM-END] CUSTOM-20261029-001
         self.ensure_render_state(window_id);
         let pending_render =
             self.render_states.get(&window_id).map(|state| state.pending_render).unwrap_or(false);
@@ -693,6 +827,15 @@ impl ApplicationHandler<EventPayload> for Application {
         };
 
         self.ensure_render_state(window_id);
+
+        // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 关闭窗口时隐藏到系统托盘
+        #[cfg(target_os = "windows")]
+        if matches!(&event, WindowEvent::CloseRequested) && self.try_hide_to_tray(window_id) {
+            self.schedule_next_event(event_loop);
+            return;
+        }
+        // [CUSTOM-END] CUSTOM-20261029-001
+
         match event {
             WindowEvent::RedrawRequested => {
                 self.redraw_requested(window_id);
@@ -866,6 +1009,35 @@ impl ApplicationHandler<EventPayload> for Application {
                     }
                 }
             }
+            // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 托盘事件
+            #[cfg(target_os = "windows")]
+            UserEvent::TrayActivate => {
+                self.show_last_hidden_window();
+            }
+            // [CUSTOM-END] CUSTOM-20261029-001
+            // [CUSTOM-BEGIN] CUSTOM-20261029-003 - 帮助.关于
+            #[cfg(target_os = "windows")]
+            UserEvent::ShowAbout(message) => {
+                self.show_about_dialog(&message);
+            }
+            // [CUSTOM-END] CUSTOM-20261029-003
+            // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 托盘菜单 id 分流，其余菜单交给 nvim
+            #[cfg(target_os = "windows")]
+            UserEvent::MenuCommand(command) => {
+                if let Some(action) = super::tray::TrayMenuAction::from_menu_id(&command) {
+                    match action {
+                        super::tray::TrayMenuAction::Show => self.show_last_hidden_window(),
+                        super::tray::TrayMenuAction::Quit => self.handle_tray_quit(event_loop),
+                    }
+                } else {
+                    self.window_wrapper.handle_user_event(EventPayload {
+                        payload: UserEvent::MenuCommand(command),
+                        target,
+                    });
+                    self.mark_should_render_all();
+                }
+            }
+            // [CUSTOM-END] CUSTOM-20261029-001
             payload => {
                 self.window_wrapper.handle_user_event(EventPayload { payload, target });
                 match target {
@@ -896,6 +1068,12 @@ impl ApplicationHandler<EventPayload> for Application {
 
     fn exiting(&mut self, event_loop: &ActiveEventLoop) {
         tracy_zone!("exiting");
+        // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 退出前移除托盘图标
+        #[cfg(target_os = "windows")]
+        {
+            self.tray = None;
+        }
+        // [CUSTOM-END] CUSTOM-20261029-001
         self.teardown();
         self.error_windows.clear();
         self.window_wrapper.exit();

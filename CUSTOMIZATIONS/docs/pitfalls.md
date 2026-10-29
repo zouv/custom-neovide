@@ -3,6 +3,20 @@
 > 排查问题前先扫标题；解决新坑后回写一条（现象 → 根因 → 解法 → 教训）。
 > 每条一个 `### 标题`，按时间倒序追加，永不删改历史。
 
+### 隐藏到托盘的窗口必须跳过渲染调度
+
+- **现象**：关闭窗口到托盘后，窗口已经不可见，但进程仍持续占用 CPU（按 `refresh_rate` 甚至更高频唤醒），看起来还在渲染。
+- **根因**：`render_states` 里仍保留隐藏窗口；`Application::get_event_deadline_for` 会按刷新率返回 deadline，`prepare_and_animate` 也会继续 `prepare_frame`/`animate`/`schedule_render`。Neovide 的帧调度是自驱动的（`request_redraw` + vsync + deadline），窗口不可见并不会自动停下。
+- **解法**：用 `RouteState::hidden_to_tray` 标记；`prepare_frame` / `draw_frame` / `request_redraw_for_window` 对隐藏窗口直接返回，`prepare_and_animate` 跳过隐藏窗口，`get_event_deadline` 过滤隐藏窗口的 render state，全部窗口隐藏时 `next_control_flow` 返回 `ControlFlow::Wait`（仅靠 EventLoopProxy 事件唤醒）。实测隐藏 4 秒 CPU 增量 0.000s。
+- **教训**：窗口“不可见”不等于渲染循环会停。任何隐藏主窗口的功能，都必须同时把它从帧调度和 deadline 计算里摘掉；只调 `set_visible(false)` 会留下空转。
+
+### 托盘必须创建成功后再隐藏窗口
+
+- **现象**：隐藏窗口后托盘没有出现，进程还在后台运行，但用户没有任何入口恢复窗口，只能任务管理器结束进程。
+- **根因**：关闭路径若先 `set_visible(false)` 再创建托盘，托盘创建失败（explorer/任务栏未就绪、图标解码失败、tray-icon 初始化异常）时窗口已经消失；托盘是唯一的恢复入口，失败后无法补救。
+- **解法**：`Application::try_hide_to_tray` 先调用 `tray::Tray::create`，拿到 `Some` 才执行 `hide_window_to_tray`；创建失败时打 warn 并返回 false，让 `CloseRequested` 继续走上游 `handle_quit` 正常退出。
+- **教训**：“隐藏主窗口 + 托盘常驻”类功能，托盘创建是隐藏的前置条件，不是后续步骤；必须准备失败回退路径。
+
 ### noice 等插件让 `:q` 守卫失效
 
 - **现象**：`neovide_welcome.lua` 的 `QuitPre` 守卫在无界面测试里能拦住 `:q`，但在 Neovide + LazyVim 里按 `:q` 仍然直接关窗。日志显示 `QuitPre wins=3 floats=2`。

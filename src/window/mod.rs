@@ -12,6 +12,16 @@ mod window_wrapper;
 pub mod menubar;
 // [CUSTOM-END] CUSTOM-20261025-001
 
+// [CUSTOM-BEGIN] CUSTOM-20261029-001 - 关闭到系统托盘
+#[cfg(target_os = "windows")]
+pub mod tray;
+// [CUSTOM-END] CUSTOM-20261029-001
+
+// [CUSTOM-BEGIN] CUSTOM-20261029-003 - 帮助.关于
+#[cfg(target_os = "windows")]
+pub mod about;
+// [CUSTOM-END] CUSTOM-20261029-003
+
 #[cfg(target_os = "linux")]
 use std::env;
 
@@ -172,6 +182,14 @@ pub enum UserEvent {
     #[cfg(target_os = "windows")]
     MenuCommand(String),
     // [CUSTOM-END] CUSTOM-20261025-001
+    // [CUSTOM-BEGIN] CUSTOM-20261029-001 - 托盘左键点击，恢复隐藏的窗口
+    #[cfg(target_os = "windows")]
+    TrayActivate,
+    // [CUSTOM-END] CUSTOM-20261029-001
+    // [CUSTOM-BEGIN] CUSTOM-20261029-003 - 帮助.关于对话框
+    #[cfg(target_os = "windows")]
+    ShowAbout(String),
+    // [CUSTOM-END] CUSTOM-20261029-003
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
