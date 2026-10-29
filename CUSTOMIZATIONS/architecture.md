@@ -55,7 +55,7 @@ window 输入 ──▶ bridge(ui_commands) ──UiCommand──▶ nvim
 | 鼠标 / 键盘输入                | `src/window/mouse_manager.rs`、`src/window/keyboard_manager.rs`                                                  | renderer                        | §2.7 |
 | 设置项（新增/改默认）          | `src/settings/{mod,config,window_size,font,from_value}.rs` + `lua/init.lua` + 各 `*Settings` struct               | —                               | §2.8 |
 | 剪贴板                         | `src/clipboard.rs`、`src/bridge/clipboard.rs`                                                                    | —                               | §2.9 |
-| 单实例复用（macOS/Windows）    | `src/ipc/handoff.rs`、`src/main.rs::maybe_handoff`、`src/window/application.rs::prepare_open_files`              | —                               | §2.10 |
+| 单实例复用（默认，macOS/Windows） | `src/ipc/handoff.rs`、`src/main.rs::maybe_handoff`、`src/window/application.rs::prepare_open_files`、`src/cmd_line.rs`（`--new-instance`/`--new-window`） | —                               | §2.10 |
 | Windows 原生菜单栏             | `src/window/menubar.rs`、`src/window/window_wrapper.rs`（菜单命令/显隐）、`src/window/about.rs`（帮助.关于）、`src/bridge/handler.rs`（set_menu/about）、`src/renderer/mod.rs`（渲染器选择）、`lua/init.lua`（refresh_menu/menu_command） | renderer 内部实现、editor | §2.12 |
 | 系统托盘 / 关闭到托盘          | `src/window/tray.rs`、`src/window/application.rs`（CloseRequested 拦截/托盘生命周期）、`src/window/window_wrapper.rs`（hidden_to_tray/渲染暂停）、`src/window/settings.rs`（g:neovide_tray） | bridge、editor、renderer 内部实现 | §2.13 |
 | 打包 / 发布                    | `wix/`（Windows）、`.github/workflows/`、`Cargo.toml`                                                            | 业务代码                        | §2.11 |
@@ -136,10 +136,11 @@ nvim 发 `win_viewport` → editor 发 `DrawCommand::Window{Viewport{scroll_delt
 - `src/clipboard.rs`：`Clipboard`/`ClipboardHandle`（多 provider）
 - `src/bridge/clipboard.rs`：与 nvim 的 get/set 桥接
 
-### 2.10 单实例复用（macOS/Windows）
-- `src/ipc/handoff.rs`：回环 TCP / unix socket listener、`HandoffRequest`、`try_handoff`
-- `src/main.rs::maybe_handoff`：客户端侧（`--reuse-instance`）
-- `src/window/application.rs::prepare_open_files`：服务端处理 `UserEvent::OpenFiles`
+### 2.10 单实例复用（macOS/Windows，默认启用）
+- `src/main.rs::maybe_handoff`：每次启动都尝试 handoff；`--new-instance`（别名 `--no-single-instance`）、`--server`、`--wsl` 跳过。handoff 被拒绝/失败只记录 warn，继续正常启动；`--reuse-instance` 保留为兼容参数
+- `src/ipc/handoff.rs`：回环 TCP / unix socket listener、`HandoffRequest`、`try_handoff`；空请求也会转发；客户端比较响应中的 `BUILD_VERSION`，纯激活请求遇到旧版本服务端时改为启动新实例（带文件/`--new-window` 仍交给已有实例）
+- `src/window/application.rs::prepare_open_files`：服务端处理 `UserEvent::OpenFiles`；无文件时走 `activate_focused_route`（恢复托盘隐藏窗口，多窗口全隐藏时用 `last_hidden_window()` 兜底）
+- `src/cmd_line.rs`：`--new-window` 不再要求 `--reuse-instance`，可与默认单例直接配合
 
 ### 2.11 打包
 - `wix/main.wxs`：Windows MSI（含右键「Open with Neovide」注册表）

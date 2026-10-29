@@ -124,7 +124,21 @@ fn exchange_request<R: BufRead, W: Write>(
     }
 
     match read_message::<HandoffResponse, _>(&mut reader) {
-        Ok(response) if response.accepted => HandoffResult::Accepted,
+        // [CUSTOM-BEGIN] CUSTOM-20261029-005 - 纯激活请求遇到旧版本服务端时启动新实例
+        // 旧版本服务端不会处理空请求（不会恢复窗口），此时与其静默退出不如新开一个实例。
+        // 带文件/new_window 的请求即使版本不同也可以交给已有实例处理。
+        Ok(response) if response.accepted => {
+            let activation_only = !request.new_window && request.files_to_open.is_empty();
+            if !activation_only || response.version == request.version {
+                HandoffResult::Accepted
+            } else {
+                HandoffResult::Rejected(format!(
+                    "running instance is version {}, this process is {}",
+                    response.version, request.version
+                ))
+            }
+        }
+        // [CUSTOM-END] CUSTOM-20261029-005
         Ok(response) => HandoffResult::Rejected(
             response.error.unwrap_or_else(|| "instance IPC request was rejected".to_owned()),
         ),
@@ -410,28 +424,26 @@ fn handle_request(
     request: HandoffRequest,
     proxy: &EventLoopProxy<EventPayload>,
 ) -> HandoffResponse {
-    if request.new_window || !request.files_to_open.is_empty() {
-        let payload = EventPayload {
-            payload: UserEvent::OpenFiles {
-                files: request.files_to_open,
-                cwd: request.cwd,
-                caller_cwd: request.caller_cwd,
-                tabs: request.tabs,
-                new_window: request.new_window,
-            },
-            target: EventTarget::Focused,
-        };
+    // [CUSTOM-BEGIN] CUSTOM-20261029-005 - 空请求也转发，用于恢复隐藏到托盘的窗口
+    let payload = EventPayload {
+        payload: UserEvent::OpenFiles {
+            files: request.files_to_open,
+            cwd: request.cwd,
+            caller_cwd: request.caller_cwd,
+            tabs: request.tabs,
+            new_window: request.new_window,
+        },
+        target: EventTarget::Focused,
+    };
 
-        if let Err(error) = proxy.send_event(payload) {
-            return HandoffResponse {
-                accepted: false,
-                version: BUILD_VERSION.to_owned(),
-                error: Some(format!(
-                    "failed to forward handoff request to app event loop: {error}"
-                )),
-            };
-        }
+    if let Err(error) = proxy.send_event(payload) {
+        return HandoffResponse {
+            accepted: false,
+            version: BUILD_VERSION.to_owned(),
+            error: Some(format!("failed to forward handoff request to app event loop: {error}")),
+        };
     }
+    // [CUSTOM-END] CUSTOM-20261029-005
 
     HandoffResponse { accepted: true, version: BUILD_VERSION.to_owned(), error: None }
 }

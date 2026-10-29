@@ -58,18 +58,25 @@ pub struct CmdLineSettings {
     #[arg(long, alias = "remote-tcp", env = "NEOVIDE_SERVER", value_name = "ADDRESS")]
     pub server: Option<String>,
 
-    /// Open files in an existing Neovide app instance if one is already running
+    /// Hand off to an existing Neovide process (enabled by default; kept for compatibility)
     // [CUSTOM-BEGIN] CUSTOM-20261024-002 - enable --reuse-instance on Windows
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     // [CUSTOM-END] CUSTOM-20261024-002
     #[arg(long = "reuse-instance", action = ArgAction::SetTrue, default_value = "0", value_parser = FalseyValueParser::new())]
     pub reuse_instance: bool,
 
+    /// Start a separate process even when another Neovide instance is already running
+    // [CUSTOM-BEGIN] CUSTOM-20261029-005 - 默认单例运行，可显式选择新实例
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    // [CUSTOM-END] CUSTOM-20261029-005
+    #[arg(long = "new-instance", alias = "no-single-instance", action = ArgAction::SetTrue, default_value = "0", value_parser = FalseyValueParser::new())]
+    pub new_instance: bool,
+
     /// Open files in a new window when reusing an existing Neovide instance
     // [CUSTOM-BEGIN] CUSTOM-20261024-002 - enable --new-window on Windows
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     // [CUSTOM-END] CUSTOM-20261024-002
-    #[arg(long = "new-window", requires = "reuse_instance", action = ArgAction::SetTrue, default_value = "0", value_parser = FalseyValueParser::new())]
+    #[arg(long = "new-window", action = ArgAction::SetTrue, default_value = "0", value_parser = FalseyValueParser::new())]
     pub new_window: bool,
 
     /// Run NeoVim in WSL rather than on the host
@@ -430,7 +437,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     fn test_reuse_instance_flag() {
         let settings = Settings::new();
         let args: Vec<String> =
@@ -442,7 +449,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     fn test_new_window_flag() {
         let settings = Settings::new();
         let args: Vec<String> = ["neovide", "--reuse-instance", "--new-window", "./foo.txt"]
@@ -457,13 +464,26 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_os = "macos")]
-    fn test_new_window_requires_reuse_instance() {
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    fn test_new_window_without_reuse_instance() {
         let settings = Settings::new();
         let args: Vec<String> =
             ["neovide", "--new-window", "./foo.txt"].iter().map(|s| s.to_string()).collect();
 
-        assert!(handle_command_line_arguments(args, &settings).is_err());
+        handle_command_line_arguments(args, &settings).expect("Could not parse arguments");
+        assert!(settings.get::<CmdLineSettings>().new_window);
+        assert_eq!(settings.get::<CmdLineSettings>().files_to_open, vec!["./foo.txt"]);
+    }
+
+    #[test]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    fn test_new_instance_flag() {
+        let settings = Settings::new();
+        let args: Vec<String> =
+            ["neovide", "--new-instance"].iter().map(|s| s.to_string()).collect();
+
+        handle_command_line_arguments(args, &settings).expect("Could not parse arguments");
+        assert!(settings.get::<CmdLineSettings>().new_instance);
     }
 
     #[test]

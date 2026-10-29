@@ -52,13 +52,13 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 | AGENTS.md、CLAUDE.md、.gitattributes | new-file | 无标记（纯自定义） | — | 会话级规则入口 + 行尾规范化（.bat CRLF / .sh LF） | keep-ours | active |
 | .gitignore | config | CUSTOM-20261024-001、CUSTOM-20261024-003 | CUSTOM-20261024-001→003 | 忽略 AI 工具会话级临时目录 + 本地打包产物 dist/ | merge-manual | active |
 | Cargo.toml | dependency | CUSTOM-20261024-002、CUSTOM-20261025-001、CUSTOM-20261029-001 | CUSTOM-20261024-002→20261025-001→20261029-001 | windows 依赖增加 Win32_UI_WindowsAndMessaging（AllowSetForegroundWindow）、Win32_UI_Shell / KeyboardAndMouse（菜单栏子类化），引入 muda 与 tray-icon | merge-manual | active |
-| src/ipc/handoff.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 单实例复用传输层（回环 TCP + PID endpoint 文件 + 前台授权） | merge-manual | active |
-| src/main.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 启用 ipc 模块与 maybe_handoff | merge-manual | active |
+| src/ipc/handoff.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261029-005 | CUSTOM-20261024-002→20261029-005 | Windows 单实例复用传输层（回环 TCP + PID endpoint 文件 + 前台授权）；空请求也转发用于恢复隐藏窗口；客户端校验服务端版本 | merge-manual | active |
+| src/main.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261029-005 | CUSTOM-20261024-002→20261029-005 | Windows 启用 ipc 模块与 maybe_handoff；默认尝试单例 handoff，失败仅告警并继续启动，`--new-instance` 可跳过 | merge-manual | active |
 | src/bridge/mod.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 导出 file-drop 队列并在 ui_attach 后标记就绪 | merge-manual | active |
 | src/bridge/ui_commands.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001 | CUSTOM-20261024-002→20261025-001 | Windows 复用 file-drop 排队/就绪机制；新增 MenuCommand 执行 `:emenu` | merge-manual | active |
 | src/bridge/handler.rs | modified-upstream | CUSTOM-20261025-001、CUSTOM-20261029-003 | CUSTOM-20261025-001→20261029-003 | 接收 `neovide.set_menu` 通知，解析菜单树并下发 SetMenu 窗口命令；接收 `neovide.about` 通知并转发 ShowAbout | merge-manual | active |
 | src/window/mod.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001、CUSTOM-20261029-001、CUSTOM-20261029-003 | CUSTOM-20261024-002→20261025-001→20261029-001→20261029-003 | Windows 启用 OpenFiles 事件；新增 menubar / tray / about 模块、WindowCommand::SetMenu、UserEvent::MenuCommand / TrayActivate / ShowAbout；菜单栏启用时跳过 NOREDIRECTIONBITMAP | merge-manual | active |
-| src/window/application.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001、CUSTOM-20261029-001、CUSTOM-20261029-003 | CUSTOM-20261024-002→20261025-001→20261029-001→20261029-003 | Windows 处理 OpenFiles 事件（激活窗口 + 转发文件）；注册 muda 全局菜单事件处理器；CloseRequested 隐藏到托盘、托盘图标生命周期与托盘退出；ShowAbout 弹出原生关于对话框 | merge-manual | active |
+| src/window/application.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001、CUSTOM-20261029-001、CUSTOM-20261029-003、CUSTOM-20261029-005 | CUSTOM-20261024-002→20261025-001→20261029-001→20261029-003→20261029-005 | Windows 处理 OpenFiles 事件（激活窗口 + 转发文件）；注册 muda 全局菜单事件处理器；CloseRequested 隐藏到托盘、托盘图标生命周期与托盘退出；ShowAbout 弹出原生关于对话框；单例唤醒恢复最近隐藏窗口 | merge-manual | active |
 | src/window/window_wrapper.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261025-001、CUSTOM-20261029-001 | CUSTOM-20261024-002→20261025-001→20261029-001 | Windows 新增 activate_and_focus_window（恢复最小化 + 抢前台）；菜单栏挂载/重建/显隐/主题与点击转发；托盘隐藏状态、恢复/全部恢复、隐藏窗口跳过渲染调度 | merge-manual | active |
 | src/window/menubar.rs | new-file | CUSTOM-20261025-001 | CUSTOM-20261025-001 | Windows 原生菜单栏（muda 菜单树、Alt 键过滤子类、主题） | keep-ours | active |
 | src/window/tray.rs | new-file | CUSTOM-20261029-001 | CUSTOM-20261029-001 | Windows 系统托盘（tray-icon：图标、右键菜单、左键恢复事件；与菜单栏共用 muda 事件） | keep-ours | active |
@@ -66,9 +66,9 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 | src/window/settings.rs | modified-upstream | CUSTOM-20261025-001、CUSTOM-20261029-001 | CUSTOM-20261025-001→20261029-001 | 新增 g:neovide_menubar（Windows，默认 false）、g:neovide_tray（Windows，默认 false） | merge-manual | active |
 | src/renderer/mod.rs | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | Windows 启用菜单栏时强制走 OpenGL（D3D 的 NOREDIRECTIONBITMAP 让原生菜单栏不可见） | merge-manual | active |
 | lua/init.lua | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | 菜单树采集/发送（neovide.refresh_menu）、点击执行（:emenu）、启动后自动刷新 | merge-manual | active |
-| CUSTOMIZATIONS/nvim/ | new-file | 无标记（纯自定义） | CUSTOM-20261025-002→20261026-001→20261029-002→20261029-003 | nvim 侧配置副本：菜单内容定义（含帮助.关于）+ 关闭最后文件保留窗口（窗口计数排除浮窗）；README 记录本机 `options.lua` 启用 menubar/tray | keep-ours | active |
+| CUSTOMIZATIONS/nvim/ | new-file | 无标记（纯自定义） | CUSTOM-20261025-002→20261026-001→20261029-002→20261029-003→CUSTOM-20261029-004 | nvim 侧配置副本：菜单内容定义（含帮助.关于）+ 关闭最后文件保留窗口（窗口计数排除浮窗）+ 普通模式 Ctrl-W 执行 :q；README 记录本机 `options.lua` 启用 menubar/tray | keep-ours | active |
 | src/utils/mod.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 resolved_cwd / resolve_relative_path | merge-manual | active |
-| src/cmd_line.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 启用 --reuse-instance / --new-window 参数 + argv_chdir | merge-manual | active |
+| src/cmd_line.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261029-005 | CUSTOM-20261024-002→20261029-005 | Windows 启用 --reuse-instance / --new-window 参数 + argv_chdir；新增 --new-instance/--no-single-instance，--new-window 不再要求 --reuse-instance | merge-manual | active |
 | src/version.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 release_channel | merge-manual | active |
 | wix/main.wxs | config | CUSTOM-20261024-002 | CUSTOM-20261024-002 | 右键/双击打开默认加 --reuse-instance | merge-manual | active |
 
@@ -77,6 +77,22 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 ## 变更日志（按次）
 
 > 时间倒序 append-only。格式见 `neovide-record-change` skill。历史条目永不删改。
+
+### 2026-10-29 - CUSTOM-20261029-005
+
+- **功能**：默认单例运行——再次启动 Neovide 时复用已有进程并恢复窗口（含托盘隐藏状态）
+- **改动文件**：`src/main.rs`、`src/ipc/handoff.rs`、`src/cmd_line.rs`、`src/window/application.rs`
+- **详细说明**：`maybe_handoff` 不再要求 `--reuse-instance`，每次启动都尝试 handoff；`--new-instance`（别名 `--no-single-instance`）可显式启动独立进程，`--server`/`--wsl` 自动跳过。`handle_request` 对空请求也转发 `UserEvent::OpenFiles`，服务端 `prepare_open_files` 在无文件时调用 `activate_focused_route`，恢复托盘隐藏窗口或把已有窗口切到前台。`activate_focused_route` 在选择窗口时增加 `last_hidden_window()` 兜底，覆盖多窗口全部隐藏的情况。客户端通过响应中的 `BUILD_VERSION` 识别旧版本服务端：纯激活请求遇到版本不一致时启动新实例（旧服务端不会恢复窗口，静默退出不可接受）；带文件/`--new-window` 的请求仍交给已有实例。handoff 被拒绝或失败不再阻止启动，只记录 warn。`--new-window` 不再要求 `--reuse-instance`。
+- **验证方式**：`cargo fmt --check`/`check`/`test`（171 passed，含 Windows 上新增的 CLI 用例）；GUI 实测：A 隐藏到托盘后启动 B（无参数）→ B 退出、A 窗口恢复且托盘移除；C 加 `--new-instance` → 独立进程存活；D 带文件启动 → D 退出、A 标题变为该文件；E 在 clean 版 `0.16.2-custom.3` 实例运行时启动 `0.16.2-custom.3-dirty` 调试版 → 版本不一致检测生效，E 正常新开实例而非静默退出。测试期间临时移走 IPC endpoint 并在结束后按原内容恢复（`{"port":64955,"pid":35368}`）。
+- **基于上游版本**：0.16.2
+
+### 2026-10-29 - CUSTOM-20261029-004
+
+- **功能**：将普通模式 `Ctrl-W` 映射为执行 `:q`，关闭当前窗口/缓冲区
+- **改动文件**：本机 `%LOCALAPPDATA%\\nvim\\lua\\config\\keymaps.lua`；同步副本 `CUSTOMIZATIONS/nvim/keymaps.lua`；`CUSTOMIZATIONS/nvim/README.md`
+- **详细说明**：在 keymaps 配置中将普通模式 `<C-w>` 映射到 `<Cmd>q<CR>`；按 Neovim 语义关闭当前窗口，单窗口场景下关闭当前缓冲区（和 `:q` 完全一致）。仓库同步副本便于追踪本机配置。
+- **验证方式**：headless Neovim 加载 keymaps 配置并通过 `maparg()` 确认普通模式 `<C-w>` 的 RHS 为 `<Cmd>q<CR>`。
+- **基于上游版本**：0.16.2
 
 ### 2026-10-29 - CUSTOM-20261029-003
 

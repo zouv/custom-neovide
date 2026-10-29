@@ -262,7 +262,16 @@ impl Application {
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     // [CUSTOM-END] CUSTOM-20261024-002
     fn activate_focused_route(&mut self) {
-        let Some(window_id) = self.window_wrapper.get_focused_route() else {
+        // [CUSTOM-BEGIN] CUSTOM-20261029-005 - 单例唤醒：全部窗口隐藏时恢复最近隐藏的窗口
+        #[cfg(target_os = "windows")]
+        let window_id = self
+            .window_wrapper
+            .get_focused_route()
+            .or_else(|| self.window_wrapper.last_hidden_window());
+        #[cfg(not(target_os = "windows"))]
+        let window_id = self.window_wrapper.get_focused_route();
+        // [CUSTOM-END] CUSTOM-20261029-005
+        let Some(window_id) = window_id else {
             return;
         };
 

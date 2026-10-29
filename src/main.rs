@@ -193,7 +193,6 @@ fn preflight(settings: &Settings) -> Result<()> {
     match maybe_handoff(settings) {
         HandoffOutcome::Continue => {}
         HandoffOutcome::Exit => std::process::exit(0),
-        HandoffOutcome::Error(error) => return Err(anyhow::anyhow!(error)),
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -308,7 +307,6 @@ fn setup(
 enum HandoffOutcome {
     Continue,
     Exit,
-    Error(String),
 }
 
 // [CUSTOM-BEGIN] CUSTOM-20261024-002 - instance handoff available on Windows too
@@ -316,12 +314,12 @@ enum HandoffOutcome {
 // [CUSTOM-END] CUSTOM-20261024-002
 fn maybe_handoff(settings: &Settings) -> HandoffOutcome {
     let cmdline_settings = settings.get::<CmdLineSettings>();
-    if !cmdline_settings.reuse_instance
-        || cmdline_settings.server.is_some()
-        || (cmdline_settings.files_to_open.is_empty() && !cmdline_settings.new_window)
-    {
+    // [CUSTOM-BEGIN] CUSTOM-20261029-005 - 默认单例运行；--new-instance 可显式启动独立进程
+    // `--reuse-instance` 保留为兼容参数，默认行为已经等价于它。
+    if cmdline_settings.new_instance || cmdline_settings.server.is_some() || cmdline_settings.wsl {
         return HandoffOutcome::Continue;
     }
+    // [CUSTOM-END] CUSTOM-20261029-005
 
     let request = ipc::handoff::HandoffRequest {
         version: BUILD_VERSION.to_owned(),
@@ -335,12 +333,15 @@ fn maybe_handoff(settings: &Settings) -> HandoffOutcome {
     match ipc::handoff::try_handoff(&request) {
         ipc::handoff::HandoffResult::Accepted => HandoffOutcome::Exit,
         ipc::handoff::HandoffResult::NoListener => HandoffOutcome::Continue,
+        // [CUSTOM-BEGIN] CUSTOM-20261029-005 - handoff 失败不再阻止启动
         ipc::handoff::HandoffResult::Rejected(error) => {
-            HandoffOutcome::Error(format!("reuse-instance request was rejected: {error}"))
+            log::warn!("Not reusing the running Neovide instance: {error}");
+            HandoffOutcome::Continue
         }
         ipc::handoff::HandoffResult::Failed(error) => {
-            HandoffOutcome::Error(format!("reuse-instance request failed: {error}"))
-        }
+            log::warn!("Instance handoff failed, starting a new instance: {error}");
+            HandoffOutcome::Continue
+        } // [CUSTOM-END] CUSTOM-20261029-005
     }
 }
 

@@ -12,6 +12,7 @@ require("config.neovide_welcome")
 | ---- | ---- |
 | `neovide_menu.lua` | 用 `:amenu` 定义原生菜单栏内容；菜单路径即菜单项 id，点击后由 `:emenu` 执行 |
 | `neovide_welcome.lua` | 关闭最后一个文件缓冲区或在最后一个窗口 `:q` 时保留窗口并显示 snacks dashboard |
+| `keymaps.lua` | 本机 `lua/config/keymaps.lua` 的同步副本；将普通模式 `Ctrl-W` 映射为 `:q` |
 
 依赖：
 
