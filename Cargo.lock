@@ -1630,7 +1630,7 @@ dependencies = [
 
 [[package]]
 name = "neovide"
-version = "0.16.2-custom.2"
+version = "0.16.2-custom.3"
 dependencies = [
  "anyhow",
  "approx",
