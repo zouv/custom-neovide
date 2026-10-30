@@ -66,7 +66,6 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 | src/window/settings.rs | modified-upstream | CUSTOM-20261025-001、CUSTOM-20261029-001 | CUSTOM-20261025-001→20261029-001 | 新增 g:neovide_menubar（Windows，默认 false）、g:neovide_tray（Windows，默认 false） | merge-manual | active |
 | src/renderer/mod.rs | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | Windows 启用菜单栏时强制走 OpenGL（D3D 的 NOREDIRECTIONBITMAP 让原生菜单栏不可见） | merge-manual | active |
 | lua/init.lua | modified-upstream | CUSTOM-20261025-001 | CUSTOM-20261025-001 | 菜单树采集/发送（neovide.refresh_menu）、点击执行（:emenu）、启动后自动刷新 | merge-manual | active |
-| CUSTOMIZATIONS/nvim/ | new-file | 无标记（纯自定义） | CUSTOM-20261025-002→20261026-001→20261029-002→20261029-003→CUSTOM-20261029-004 | nvim 侧配置副本：菜单内容定义（含帮助.关于）+ 关闭最后文件保留窗口（窗口计数排除浮窗）+ 普通模式 Ctrl-W 执行 :q；README 记录本机 `options.lua` 启用 menubar/tray | keep-ours | active |
 | src/utils/mod.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 resolved_cwd / resolve_relative_path | merge-manual | active |
 | src/cmd_line.rs | modified-upstream | CUSTOM-20261024-002、CUSTOM-20261029-005 | CUSTOM-20261024-002→20261029-005 | Windows 启用 --reuse-instance / --new-window 参数 + argv_chdir；新增 --new-instance/--no-single-instance，--new-window 不再要求 --reuse-instance | merge-manual | active |
 | src/version.rs | modified-upstream | CUSTOM-20261024-002 | CUSTOM-20261024-002 | Windows 复用 release_channel | merge-manual | active |
@@ -86,28 +85,12 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 - **验证方式**：`cargo fmt --check`/`check`/`test`（171 passed，含 Windows 上新增的 CLI 用例）；GUI 实测：A 隐藏到托盘后启动 B（无参数）→ B 退出、A 窗口恢复且托盘移除；C 加 `--new-instance` → 独立进程存活；D 带文件启动 → D 退出、A 标题变为该文件；E 在 clean 版 `0.16.2-custom.3` 实例运行时启动 `0.16.2-custom.3-dirty` 调试版 → 版本不一致检测生效，E 正常新开实例而非静默退出。测试期间临时移走 IPC endpoint 并在结束后按原内容恢复（`{"port":64955,"pid":35368}`）。
 - **基于上游版本**：0.16.2
 
-### 2026-10-29 - CUSTOM-20261029-004
-
-- **功能**：将普通模式 `Ctrl-W` 映射为执行 `:q`，关闭当前窗口/缓冲区
-- **改动文件**：本机 `%LOCALAPPDATA%\\nvim\\lua\\config\\keymaps.lua`；同步副本 `CUSTOMIZATIONS/nvim/keymaps.lua`；`CUSTOMIZATIONS/nvim/README.md`
-- **详细说明**：在 keymaps 配置中将普通模式 `<C-w>` 映射到 `<Cmd>q<CR>`；按 Neovim 语义关闭当前窗口，单窗口场景下关闭当前缓冲区（和 `:q` 完全一致）。仓库同步副本便于追踪本机配置。
-- **验证方式**：headless Neovim 加载 keymaps 配置并通过 `maparg()` 确认普通模式 `<C-w>` 的 RHS 为 `<Cmd>q<CR>`。
-- **基于上游版本**：0.16.2
-
 ### 2026-10-29 - CUSTOM-20261029-003
 
 - **功能**：菜单栏「帮助」新增「关于」，点击弹出原生对话框显示当前版本等应用信息
 - **改动文件**：`src/window/about.rs`（新增）、`src/window/mod.rs`、`src/window/application.rs`、`src/bridge/handler.rs`、`CUSTOMIZATIONS/nvim/neovide_menu.lua`（本机同步到 `%LOCALAPPDATA%\nvim\lua\config\`）
 - **详细说明**：nvim 侧 `neovide_menu.lua` 增加「帮助.关于」菜单项和 `about` action；`M.about_text()` 组装 Neovide 版本、Neovim 版本、系统与配置目录，点击后通过 `rpcnotify(neovide_channel_id, "neovide.about", text)` 发给 Neovide。Rust 侧 `bridge/handler.rs` 新增 `neovide.about` 通知分支 → `UserEvent::ShowAbout` → `src/window/about.rs` 用 Win32 `MessageBoxW` 弹出原生对话框（owner 为当前窗口）。信息由 nvim 侧组装，Neovim 版本天然准确；Neovide 版本取自 `vim.g.neovide_version`（Rust `BUILD_VERSION`，含 git describe，工作区未提交时带 `-dirty`）。
 - **验证方式**：`cargo fmt --check`/`check`/`test`（167 passed）；headless nvim 验证 `menu_get('帮助')` 含「关于」且 `about_text()` 输出 `Neovide 0.16.2-custom.2 / Neovim 0.12.2 / Windows_NT 10.0.19045 (x86_64) / 配置目录`；GUI 实测用 Win32 `WM_COMMAND` 触发菜单项（id 1034），出现 `#32770` 对话框「关于 Neovide」，正文含版本与 Neovim 信息，`WM_CLOSE` 可关闭。测试期间本机已有 Neovide 会话，新实例检测到现有 IPC listener 后跳过监听，未覆盖 endpoint。
-- **基于上游版本**：0.16.2
-
-### 2026-10-29 - CUSTOM-20261029-002
-
-- **功能**：在本机 nvim 配置中启用 `g:neovide_tray = true`
-- **改动文件**：仓库外 `%LOCALAPPDATA%\nvim\lua\config\options.lua`（同步说明在 `CUSTOMIZATIONS/nvim/README.md`）
-- **详细说明**：在 `options.lua` 的 `if vim.g.neovide then` 块内、`neovide_menubar` 之后增加 `vim.g.neovide_tray = true`，使本机 Neovide 关闭窗口时隐藏到托盘；仓库侧同步更新 `CUSTOMIZATIONS/nvim/README.md` 的依赖说明（tray 只覆盖窗口 X / Alt+F4，`:qa` 仍正常退出）。
-- **验证方式**：真实配置 headless 加载验证输出 `neovide_menubar=true neovide_tray=true`；GUI 行为已用等价临时 init（设置 `vim.g.neovide_tray = true`）实测：WM_CLOSE 后窗口隐藏、进程存活、托盘存在，模拟托盘左键恢复窗口，隐藏时结束 nvim 进程应用正确退出。本机当时已有 Neovide 会话在运行，未重复启动第二个 GUI 实例以免覆盖单实例 IPC endpoint。
 - **基于上游版本**：0.16.2
 
 ### 2026-10-29 - CUSTOM-20261029-001
@@ -124,14 +107,6 @@ upstream_remote: 'https://github.com/neovide/neovide.git'
 - **改动文件**：`src/window/mod.rs`、`CUSTOMIZATIONS/nvim/neovide_welcome.lua`（本机同步到 `%LOCALAPPDATA%\nvim\lua\config\`）
 - **详细说明**：① 菜单栏启用时渲染器切到 OpenGL，但 `create_window` 仍按 `!cmd_line.opengl` 给窗口加 `WS_EX_NOREDIRECTIONBITMAP`，窗口没有 GDI 重定向表面 → OpenGL 画面无处落地、整窗透明；改为菜单栏启用时同样跳过该标志。② `QuitPre` 守卫用 `nvim_list_wins()` 判断“最后一个窗口”，noice 的命令行/通知浮窗让计数变成 3 而放行；改为只统计当前 tabpage 的非浮动窗口，删除缓冲区路径也改用 `current_normal_window()` 定位目标窗口。
 - **验证方式**：GUI 实测 `:q` 后窗口保留并显示 LazyVim dashboard、菜单复制正常；无界面回归 `:q` 保持存活（124）、`:qa` 退出（0）、删最后一个 buffer 后 filetype=snacks_dashboard；`cargo fmt --check`/`check`/`clippy`/`test`（167 passed）通过
-- **基于上游版本**：0.16.2
-
-### 2026-10-25 - CUSTOM-20261025-002
-
-- **功能**：nvim 侧配置——原生菜单栏内容定义 + 关闭最后一个文件后保留窗口并回到欢迎界面
-- **改动文件（仓库外，同步副本在 `CUSTOMIZATIONS/nvim/`）**：`%LOCALAPPDATA%\nvim\lua\config\neovide_menu.lua`、`neovide_welcome.lua`、`lua\config\options.lua`、`init.lua`
-- **详细说明**：`neovide_menu.lua` 用 `:amenu` 定义「文件/编辑/视图/常用/帮助」菜单，分隔线用 `-sepN-` 占位，只显示真实存在的快捷键提示；`neovide_welcome.lua` 覆盖两条关闭路径——删除最后一个文件缓冲区（BufDelete/BufWipeout）和最后一个窗口上的 `:q`（QuitPre 打开备用窗口接住关闭），随后用 `Snacks.dashboard.open()` 显示欢迎界面；`:qa`/`:qa!` 与 Neovide 关闭按钮不受影响。
-- **验证方式**：`nvim --headless --cmd 'let g:neovide=v:true'` 下 `menu_get("")` 返回 5 个自定义顶层菜单；`emenu n 文件.保存` 实测成功保存；GUI 下验证待补
 - **基于上游版本**：0.16.2
 
 ### 2026-10-25 - CUSTOM-20261025-001

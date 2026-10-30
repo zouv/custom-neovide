@@ -68,10 +68,11 @@ cargo run               # 开发模式
    ... 自定义代码 ...
    // [CUSTOM-END] CUSTOM-YYYYMMDD-NNN
    ```
-3. **每次改动必须记录**：完成后调用 `neovide-record-change` skill 更新 CUSTOMIZATIONS/registry.md
-4. **不要删除 registry.md 中的历史条目**（标记 deprecated 即可）
-5. **合并冲突**：按 CUSTOMIZATIONS/README.md 的冲突策略速查处理
-6. **合并上游完成后、发布前**必须运行 `cargo fmt --check && cargo check && cargo test`
+3. **本机 nvim 配置不登记**：`%LOCALAPPDATA%\nvim\` 下的本机配置及其 `CUSTOMIZATIONS/nvim/` 同步副本属于用户环境配置，不是对 Neovide 程序逻辑的自定义；修改无需 change-id，也不登记 `registry.md`。涉及程序逻辑的部分（如 `lua/init.lua`、RPC 通知名）仍按正常规则登记。
+4. **每次程序逻辑改动必须记录**：完成后调用 `neovide-record-change` skill 更新 CUSTOMIZATIONS/registry.md
+5. **不要删除 registry.md 中的历史条目**（标记 deprecated 即可）
+6. **合并冲突**：按 CUSTOMIZATIONS/README.md 的冲突策略速查处理
+7. **合并上游完成后、发布前**必须运行 `cargo fmt --check && cargo check && cargo test`
 
 ## AI Skills 触发条件
 
@@ -79,7 +80,7 @@ Skill 定义位于 `.agents/skills/`（跨工具共享的工作区级标准路�
 
 | Skill                     | 何时调用                                                                |
 | ------------------------- | ----------------------------------------------------------------------- |
-| `neovide-record-change`   | 完成任何自定义功能/修改后                                               |
+| `neovide-record-change`   | 完成任何自定义功能/修改后（本机 nvim 配置除外）                         |
 | `neovide-merge-upstream`  | 用户要求合并上游/升级版本/同步原仓库时                                  |
 | `neovide-release`         | 用户要求打包/build 时（本地构建二进制）                                 |
 | `neovide-publish`         | 用户要求发布/上传 release/打 tag/推 release 到 GitHub 时                |
@@ -98,6 +99,7 @@ CUSTOMIZATIONS/             # 自定义开发内容（规则、账本、代码�
 ├── architecture.md         # 代码链路图谱（AI 加速索引）
 ├── registry.md             # 改动登记账本
 ├── docs/pitfalls.md        # 历史坑点沉淀
+├── nvim/                   # 本机 nvim 配置同步副本（不登记 registry）
 ├── release-notes/
 ├── src/ patches/ scripts/
 .agents/skills/             # AI Agent 项目级 skills（4 个）
@@ -108,7 +110,8 @@ CLAUDE.md                   # 一行指路文件（@AGENTS.md），供 Claude Co
 
 | 改动类型                       | 更新哪里                                                            |
 | ------------------------------ | ------------------------------------------------------------------- |
-| 任何自定义功能/修改            | `CUSTOMIZATIONS/registry.md`（record-change skill）                 |
+| 程序逻辑的自定义功能/修改      | `CUSTOMIZATIONS/registry.md`（record-change skill）                 |
+| 本机 nvim 配置（`%LOCALAPPDATA%\nvim\`、`CUSTOMIZATIONS/nvim/`） | 不登记 registry；必要时更新 `CUSTOMIZATIONS/nvim/README.md` |
 | 新增/移动函数、改数据流或接口  | `CUSTOMIZATIONS/architecture.md`（§0.5 路由表 / §1 链路 / §2 模块） |
 | 解决了一个反复折腾才定位的问题 | `CUSTOMIZATIONS/docs/pitfalls.md`（现象→根因→解法→教训）            |
 | 机制/规则变更                  | `CUSTOMIZATIONS/README.md`                                          |

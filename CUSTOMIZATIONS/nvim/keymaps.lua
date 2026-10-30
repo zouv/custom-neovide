@@ -14,7 +14,13 @@ vim.keymap.set("x", "<Del>", '"_d', { desc = "Delete selection" })
 vim.keymap.set("s", "<Del>", '<C-g>"_d', { desc = "Delete selection" })
 vim.keymap.set({ "n", "i", "x", "s" }, "<C-S-s>", "<Cmd>SaveAs<CR>", { desc = "Save as" })
 vim.keymap.set("n", "<leader>fS", "<Cmd>SaveAs<CR>", { desc = "Save as" })
-vim.keymap.set("n", "<C-w>", "<Cmd>q<CR>", { desc = "Close current buffer" })
+-- 首界面（snacks dashboard）没有可关闭的文件：忽略 Ctrl-W，避免触发 :q 退出 Neovide
+vim.keymap.set("n", "<C-w>", function()
+  if vim.bo.filetype == "snacks_dashboard" then
+    return "<Ignore>"
+  end
+  return "<Cmd>q<CR>"
+end, { expr = true, replace_keycodes = true, desc = "Close current buffer" })
 
 if vim.g.neovide then
   local function paste_over_selection()

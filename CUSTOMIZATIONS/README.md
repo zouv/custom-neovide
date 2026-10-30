@@ -11,13 +11,14 @@ CUSTOMIZATIONS/
 ├── registry.md      # 账本：frontmatter 元数据 + 改动总览（按文件）+ 变更日志（按次）
 ├── docs/
 │   └── pitfalls.md  # 历史坑点沉淀：现象→根因→解法→教训（动手前先扫标题）
+├── nvim/            # 本机 nvim 配置同步副本（不登记 registry）
 ├── release-notes/   # 各自定义版本的发布说明归档
 ├── src/             # 新增的自定义源码（独立模块，通过入口挂载）
 ├── patches/         # 对上游文件的补丁
 └── scripts/         # init-repo / sync-vendor / list-custom / check-registry 等
 ```
 
-核心约定：**一处规则（README.md）、一处账本（registry.md）、一份代码地图（architecture.md）、一份坑点库（docs/pitfalls.md）**。规则改动只改本文件；改动登记只写 registry.md；代码结构变化同步 architecture.md；踩坑沉淀进 docs/pitfalls.md；自定义代码优先放 src/。
+核心约定：**一处规则（README.md）、一处账本（registry.md）、一份代码地图（architecture.md）、一份坑点库（docs/pitfalls.md）**。规则改动只改本文件；改动登记只写 registry.md；代码结构变化同步 architecture.md；踩坑沉淀进 docs/pitfalls.md；自定义代码优先放 src/。本机 nvim 配置（`%LOCALAPPDATA%\nvim\` 及其 `CUSTOMIZATIONS/nvim/` 同步副本）不登记 registry，见「不纳入 registry 的内容」。
 
 ## registry.md 的两层结构
 
@@ -31,11 +32,20 @@ CUSTOMIZATIONS/
 ## 必须遵守的铁律
 
 1. **开发前先读 `registry.md` 的改动总览**（不必通读变更日志）：了解相关文件已有什么改动、合并时怎么处理。
-2. **改动后必须登记**：调用 `neovide-record-change` skill（总览按文件合并更新 + 日志按次追加 + check-registry 全绿）。
+2. **程序逻辑改动后必须登记**：调用 `neovide-record-change` skill（总览按文件合并更新 + 日志按次追加 + check-registry 全绿）；本机 nvim 配置除外（见下节）。
 3. **变更日志只增不改**；总览条目整体废弃时标 `deprecated` 而非删除。
 4. **禁止手动 git merge/rebase**：跨上游合并必须走 `neovide-merge-upstream` skill；禁止 rebase 改写 custom/main 历史。
 5. **写代码前先读 `architecture.md`**：按 §0.5 任务路由只读相关文件，省上下文；改了代码结构后同步该文件。
 6. **排查问题前先扫 `docs/pitfalls.md`**：新踩的坑解决后回写一条（现象→根因→解法→教训）。
+
+## 不纳入 registry 的内容
+
+以下内容属于用户环境配置，不是对 Neovide 程序逻辑的自定义，修改后无需 change-id，也不登记 `registry.md`：
+
+- `%LOCALAPPDATA%\nvim\` 下的本机 nvim 配置（`init.lua`、`lua/config/*`、插件配置等）
+- `CUSTOMIZATIONS/nvim/` 下的同步副本（`neovide_menu.lua`、`neovide_welcome.lua`、`keymaps.lua` 等）
+
+这些文件的用途、依赖与注意事项记录在 `CUSTOMIZATIONS/nvim/README.md`。若改动同时涉及程序逻辑（例如 `lua/init.lua` 的 RPC、Neovide 设置名、菜单命令协议），程序逻辑部分仍按正常规则登记。
 
 ## change-id 与代码标记
 
