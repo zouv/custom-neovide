@@ -12,7 +12,7 @@ require("config.neovide_welcome")
 | ---- | ---- |
 | `neovide_menu.lua` | 用 `:amenu` 定义原生菜单栏内容；菜单路径即菜单项 id，点击后由 `:emenu` 执行 |
 | `neovide_welcome.lua` | 关闭最后一个文件缓冲区或在最后一个窗口 `:q` 时保留窗口并显示 snacks dashboard |
-| `keymaps.lua` | 本机 `lua/config/keymaps.lua` 的同步副本；将普通模式 `Ctrl-W` 映射为 `:q`（首界面 snacks dashboard 上忽略） |
+| `keymaps.lua` | 本机 `lua/config/keymaps.lua` 的同步副本；将普通模式 `Ctrl-W` 映射为删除当前缓冲区（`Snacks.bufdelete`，与 bufferline 的 × 一致；首界面 snacks dashboard 上忽略） |
 
 依赖：
 
@@ -28,4 +28,5 @@ require("config.neovide_welcome")
 - 分隔线用 `-sepN-` 占位，Neovide 侧会渲染成真正的分隔线
 - 修改 `:amenu` 后执行 `:NeovideRefreshMenu`（或重启）让窗口菜单刷新
 - `neovide_welcome.lua` 判断“最后一个窗口”时只统计非浮动窗口：noice/which-key/notify 的浮窗会让 `nvim_list_wins()` 失真
-- `keymaps.lua` 的 `Ctrl-W` 在 `filetype == "snacks_dashboard"` 时必须返回 `<Ignore>`（不能用 `<Nop>`，它不会被 `nvim_replace_termcodes` 转换）；否则首界面按 `Ctrl-W` 会执行 `:q` 关闭最后一个窗口并退出 Neovide
+- `keymaps.lua` 的 `Ctrl-W` 在 `filetype == "snacks_dashboard"` 时必须返回 `<Ignore>`（不能用 `<Nop>`，它不会被 `nvim_replace_termcodes` 转换）；否则首界面按 `Ctrl-W` 会删除 dashboard 缓冲区
+- `Ctrl-W` 必须走缓冲区删除（`Snacks.bufdelete`），不能映射成 `:q`：LazyVim 默认单窗口，`:q` 会触发 `neovide_welcome.lua` 的 QuitPre 钩子，删掉当前缓冲区并显示 dashboard——即使 bufferline 里还有其他文件

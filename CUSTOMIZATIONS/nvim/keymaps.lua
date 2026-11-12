@@ -14,12 +14,14 @@ vim.keymap.set("x", "<Del>", '"_d', { desc = "Delete selection" })
 vim.keymap.set("s", "<Del>", '<C-g>"_d', { desc = "Delete selection" })
 vim.keymap.set({ "n", "i", "x", "s" }, "<C-S-s>", "<Cmd>SaveAs<CR>", { desc = "Save as" })
 vim.keymap.set("n", "<leader>fS", "<Cmd>SaveAs<CR>", { desc = "Save as" })
--- 首界面（snacks dashboard）没有可关闭的文件：忽略 Ctrl-W，避免触发 :q 退出 Neovide
+-- 首界面（snacks dashboard）没有可关闭的文件：忽略 Ctrl-W
+-- 其余情况删除当前文件缓冲区（与 bufferline 的 ×、<leader>bd 一致）：
+-- 还有其他文件时切到最近使用的那个；最后一个文件时由 neovide_welcome.lua 显示 dashboard
 vim.keymap.set("n", "<C-w>", function()
   if vim.bo.filetype == "snacks_dashboard" then
     return "<Ignore>"
   end
-  return "<Cmd>q<CR>"
+  return "<Cmd>lua Snacks.bufdelete()<CR>"
 end, { expr = true, replace_keycodes = true, desc = "Close current buffer" })
 
 if vim.g.neovide then
