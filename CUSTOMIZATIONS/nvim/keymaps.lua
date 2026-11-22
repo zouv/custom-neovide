@@ -8,10 +8,38 @@ vim.keymap.set({ "n", "i", "v" }, "<C-S-Tab>", "<Cmd>bprevious<CR>", { desc = "P
 vim.keymap.set("n", "<C-a>", "ggVG", { desc = "Select all" })
 vim.keymap.set("i", "<C-a>", "<Esc>ggVG", { desc = "Select all" })
 vim.keymap.set({ "x", "s" }, "<C-a>", "<Esc>ggVG", { desc = "Select all" })
+-- 插入模式下 End 位于最后一个字符之后，默认 Shift+Home 会把换行符也纳入 Select 选区。
+-- 先回到普通模式再建立选区，使 End → Shift+Home 只选择当前行文本。
+local function select_to_line_start()
+  return "<Esc>v0<C-g>"
+end
+
+-- Select 模式用 c 删除选区并留在插入模式；d 会在上述场景把后一行并上来。
+local function delete_selection()
+  -- 空行的可视选区不代表换行符，删除它应当是无操作，而不是合并两行。
+  if vim.fn.line("v") == vim.fn.line(".") and vim.api.nvim_get_current_line() == "" then
+    return "<Esc>i"
+  end
+  return '<C-g>"_c'
+end
+
+vim.keymap.set("i", "<S-Home>", select_to_line_start, {
+  expr = true,
+  replace_keycodes = true,
+  desc = "Select to line start without newline",
+})
 vim.keymap.set("x", "<BS>", '"_d', { desc = "Delete selection" })
-vim.keymap.set("s", "<BS>", '<C-g>"_d', { desc = "Delete selection" })
+vim.keymap.set("s", "<BS>", delete_selection, {
+  expr = true,
+  replace_keycodes = true,
+  desc = "Delete selection",
+})
 vim.keymap.set("x", "<Del>", '"_d', { desc = "Delete selection" })
-vim.keymap.set("s", "<Del>", '<C-g>"_d', { desc = "Delete selection" })
+vim.keymap.set("s", "<Del>", delete_selection, {
+  expr = true,
+  replace_keycodes = true,
+  desc = "Delete selection",
+})
 vim.keymap.set({ "n", "i", "x", "s" }, "<C-S-s>", "<Cmd>SaveAs<CR>", { desc = "Save as" })
 vim.keymap.set("n", "<leader>fS", "<Cmd>SaveAs<CR>", { desc = "Save as" })
 -- 首界面（snacks dashboard）没有可关闭的文件：忽略 Ctrl-W

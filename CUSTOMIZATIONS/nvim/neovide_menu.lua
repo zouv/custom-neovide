@@ -156,6 +156,12 @@ M.actions = {
     vim.lsp.buf.code_action()
   end,
   format_buffer = format_buffer,
+  register_shell_menu = function()
+    require("config.neovide_shell_menu").register()
+  end,
+  unregister_shell_menu = function()
+    require("config.neovide_shell_menu").unregister()
+  end,
   show_keymaps = show_keymaps,
   config = function()
     vim.cmd("NeovideConfig")
@@ -221,6 +227,9 @@ local menudefs = {
   { "40.50", "常用.终端", action("terminal") },
   { "40.60", "常用.代码操作", action("code_action") },
   { "40.70", "常用.格式化文件", action("format_buffer") },
+  { "40.80", "常用.-sep2-", "<Nop>" },
+  { "40.90", "常用.注册系统菜单", action("register_shell_menu") },
+  { "40.100", "常用.注销系统菜单", action("unregister_shell_menu") },
 
   -- 帮助
   { "50.10", "帮助.快捷键", action("show_keymaps") },
